@@ -1,3 +1,7 @@
+local set = vim.opt -- set options
+set.tabstop = 4
+set.softtabstop = 4
+set.shiftwidth = 4
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
@@ -15,6 +19,7 @@ if not vim.loop.fs_stat(lazypath) then
   }
 end
 vim.opt.rtp:prepend(lazypath)
+
 
 require('lazy').setup({
   -- NOTE: First, some plugins that don't require any configuration
