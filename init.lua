@@ -20,7 +20,11 @@ vim.keymap.set("n", "<S-h>", function()
   vim.cmd.bprevious()
 end)
 
---NVIM-Tree
+--ToggleTerminal
+vim.keymap.set("n", "<leader>t", function()
+  vim.cmd.ToggleTerm()
+end)
+
 
 -- disable netrw at the very start of your init.lua
 vim.g.loaded_netrw = 1
@@ -85,6 +89,12 @@ require('lazy').setup({
     config = function()
       require("nvim-tree").setup {}
     end,
+  },
+
+  {
+  -- amongst your other plugins
+    {'akinsho/toggleterm.nvim', version = "*", config = true}
+  -- or
   },
 
   {
@@ -248,7 +258,6 @@ require('lazy').setup({
 
 }, {})
 
-require("nvim-tree").setup()
 
 -- OR setup with some options
 require("nvim-tree").setup({
@@ -265,6 +274,26 @@ require("nvim-tree").setup({
     dotfiles = true,
   },
 })
+
+require("toggleterm").setup{
+
+  open_mapping = [[c-\\=]],
+  start_in_insert = true,
+  insert_mappings = true,
+  close_on_exit = true,
+
+}
+
+function _G.set_terminal_keymaps()
+  local opts = {noremap = true}
+  vim.api.nvim_buf_set_keymap(0, 't', '<esc>', [[<C-\><C-n>]], opts)
+  vim.api.nvim_buf_set_keymap(0, 't', 'jk', [[<C-\><C-n>]], opts)
+  vim.api.nvim_buf_set_keymap(0, 't', '<C-h>', [[<C-\><C-n><C-W>h]], opts)
+  vim.api.nvim_buf_set_keymap(0, 't', '<C-j>', [[<C-\><C-n><C-W>j]], opts)
+  vim.api.nvim_buf_set_keymap(0, 't', '<C-k>', [[<C-\><C-n><C-W>k]], opts)
+  vim.api.nvim_buf_set_keymap(0, 't', '<C-l>', [[<C-\><C-n><C-W>l]], opts)
+end
+
 
 -- [[ Setting options ]]
 -- See `:help vim.o`
