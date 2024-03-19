@@ -5,7 +5,9 @@ set.shiftwidth = 4
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 vim.wo.relativenumber = true
-vim.keymap.set("i", "jj", "<Esc>", { silent = true })
+vim.opt.clipboard = "unnamedplus"
+
+vim.keymap.set("i", "jk", "<Esc>", { silent = true })
 vim.keymap.set("n", "<leader>e", function()
   vim.cmd.NvimTreeToggle()
 end)
