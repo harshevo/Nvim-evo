@@ -8,10 +8,9 @@ vim.wo.relativenumber = true
 vim.opt.clipboard = "unnamedplus"
 
 vim.keymap.set("i", "jk", "<Esc>", { silent = true })
-vim.keymap.set("n", "<leader>e", function()
-  vim.cmd.NvimTreeToggle()
-end)
+vim.keymap.set("n", "<leader>e", '<Cmd>Neotree toggle<CR>') 
 
+vim.g.have_nerd_font = true
 --buffer change
 
 vim.keymap.set("n", "<S-l>", function()
@@ -82,14 +81,15 @@ require('lazy').setup({
   },
 
   {
-    "nvim-tree/nvim-tree.lua",
+    "nvim-neo-tree/neo-tree.nvim",
     version = "*",
-    lazy = false,
     dependencies = {
-      "nvim-tree/nvim-web-devicons",
+      "nvim-lua/plenary.nvim",
+      "nvim-tree/nvim-web-devicons", -- not strictly required, but recommended
+      "MunifTanjim/nui.nvim",
     },
-    config = function()
-      require("nvim-tree").setup {}
+    config = function ()
+      require('neo-tree').setup {}
     end,
   },
 
@@ -304,21 +304,6 @@ require('lazy').setup({
 }, {})
 
 
--- OR setup with some options
-require("nvim-tree").setup({
-  sort = {
-    sorter = "case_sensitive",
-  },
-  view = {
-    width = 30,
-  },
-  renderer = {
-    group_empty = true,
-  },
-  filters = {
-    dotfiles = true,
-  },
-})
 
 require("toggleterm").setup{
 
