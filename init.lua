@@ -6,10 +6,21 @@ set.shiftwidth = 4
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 vim.wo.relativenumber = true
-vim.opt.clipboard = "unnamedplus"
+-- vim.opt.clipboard = "unnamedplus"
+
+-- copying and pasting from system clipboard
+vim.keymap.set("x", "<leader>p", [["_dP]])
+
+vim.keymap.set({"n", "v"}, "<leader>y", [["+y]])
+vim.keymap.set("n", "<leader>Y", [["+Y]])
+vim.keymap.set({"n", "v"}, "<leader>d", [["_d]])
+
 
 vim.keymap.set("i", "jk", "<Esc>", { silent = true })
-vim.keymap.set("n", "<leader>e", '<Cmd>Neotree toggle<CR>') 
+
+vim.keymap.set("n", "<leader>e", ':NvimTreeToggle<CR>', {
+  noremap = true
+}) 
 
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
 vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv")
@@ -85,15 +96,14 @@ require('lazy').setup({
   },
 
   {
-    "nvim-neo-tree/neo-tree.nvim",
+    "nvim-tree/nvim-tree.lua",
     version = "*",
+    lazy = false,
     dependencies = {
-      "nvim-lua/plenary.nvim",
-      "nvim-tree/nvim-web-devicons", -- not strictly required, but recommended
-      "MunifTanjim/nui.nvim",
+      "nvim-tree/nvim-web-devicons",
     },
-    config = function ()
-      require('neo-tree').setup {}
+    config = function()
+      require("nvim-tree").setup {}
     end,
   },
 
@@ -372,11 +382,6 @@ vim.wo.number = true
 
 -- Enable mouse mode
 vim.o.mouse = 'a'
-
--- Sync clipboard between OS and Neovim.
---  Remove this option if you want your OS clipboard to remain independent.
---  See `:help 'clipboard'`
-vim.o.clipboard = 'unnamedplus'
 
 -- Enable break indent
 vim.o.breakindent = true
