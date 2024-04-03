@@ -6,6 +6,8 @@ set.shiftwidth = 4
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 vim.wo.relativenumber = true
+vim.opt.fillchars = {eob = " "}
+vim.opt.cursorline = true
 -- vim.opt.clipboard = "unnamedplus"
 
 -- copying and pasting from system clipboard
