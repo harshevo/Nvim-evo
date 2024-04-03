@@ -8,6 +8,7 @@ vim.g.maplocalleader = ' '
 vim.wo.relativenumber = true
 vim.opt.fillchars = {eob = " "}
 vim.opt.cursorline = true
+
 -- vim.opt.clipboard = "unnamedplus"
 
 -- copying and pasting from system clipboard
@@ -19,6 +20,8 @@ vim.keymap.set({"n", "v"}, "<leader>d", [["_d]])
 
 
 vim.keymap.set("i", "jk", "<Esc>", { silent = true })
+vim.keymap.set("n", "<leader>w", ":w<CR>")
+vim.keymap.set("n", "<leader>c", ":bd<CR>")
 
 vim.keymap.set("n", "<leader>e", ':NvimTreeToggle<CR>', {
   noremap = true
@@ -95,6 +98,23 @@ require('lazy').setup({
       -- Additional lua configuration, makes nvim stuff amazing!
       'folke/neodev.nvim',
     },
+  },
+
+
+  --undotree
+  {
+    "jiaoshijie/undotree",
+    dependencies = "nvim-lua/plenary.nvim",
+    config = true,
+    keys = { -- load the plugin only when using it's keybinding:
+      { "<leader>u", "<cmd>lua require('undotree').toggle()<cr>" },
+    },
+  },
+
+  {
+   "lukas-reineke/indent-blankline.nvim",
+    main = "ibl",
+    opts = {} 
   },
 
   {
@@ -304,15 +324,6 @@ require('lazy').setup({
         section_separators = '',
       },
     },
-  },
-
-  {
-    -- Add indentation guides even on blank lines
-    'lukas-reineke/indent-blankline.nvim',
-    -- Enable `lukas-reineke/indent-blankline.nvim`
-    -- See `:help ibl`
-    main = 'ibl',
-    opts = {},
   },
 
   -- "gc" to comment visual regions/lines
