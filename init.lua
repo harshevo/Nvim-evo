@@ -9,6 +9,7 @@ vim.wo.relativenumber = true
 vim.opt.fillchars = {eob = " "}
 vim.opt.cursorline = true
 
+
 -- vim.opt.clipboard = "unnamedplus"
 
 -- copying and pasting from system clipboard
@@ -25,7 +26,7 @@ vim.keymap.set("n", "<leader>c", ":bd<CR>")
 
 vim.keymap.set("n", "<leader>e", ':NvimTreeToggle<CR>', {
   noremap = true
-}) 
+})
 
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
 vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv")
@@ -156,7 +157,7 @@ require('lazy').setup({
     opts = {
         -- add any options here
     },
-    lazy = false, 
+    lazy = false,
   },
 
   {
@@ -253,63 +254,84 @@ require('lazy').setup({
     },
   },
 
+  -- Theme
   {
+    -- 1st
     -- Theme inspired by Atom
     -- 'navarasu/onedark.nvim',
     -- priority = 1000,
     -- config = function()
     --   vim.cmd.colorscheme 'onedark'
     -- end,
+
+    -- 2nd
+    -- "tiagovla/tokyodark.nvim",
+    -- opts = {
+    -- },
+    -- config = function(_, opts)
+    --     require("tokyodark").setup(opts) -- calling setup is optional
+    --     vim.cmd [[colorscheme tokyodark]]
+    -- end,
+        -- config = function()
+        --     require("catppuccin").setup {
+        --         flavour = "mocha", -- latte, frappe, macchiato, mocha
+        --         term_colors = true,
+        --         transparent_background = false,
+        --         no_italic = false,
+        --         no_bold = false,
+        --         styles = {
+        --             comments = {},
+        --             conditionals = {},
+        --             loops = {},
+        --             functions = {},
+        --             keywords = {},
+        --             strings = {},
+        --             variables = {},
+        --             numbers = {},
+        --             booleans = {},
+        --             properties = {},
+        --             types = {},
+        --         },
+        --         color_overrides = {
+        --             mocha = {
+        --                 base = "#000000",
+        --                 mantle = "#000000",
+        --                 crust = "#000000",
+        --             },
+        --         },
+        --         highlight_overrides = {
+        --             mocha = function(C)
+        --                 return {
+        --                     TabLineSel = { bg = C.pink },
+        --                     CmpBorder = { fg = C.surface2 },
+        --                     Pmenu = { bg = C.none },
+        --                     TelescopeBorder = { link = "FloatBorder" },
+        --                 }
+        --             end,
+        --         },
+        --     }
+        --
+        --     vim.cmd.colorscheme "catppuccin"
+        -- end,
     --
 
-    "tiagovla/tokyodark.nvim",
-    opts = {
-    },
-    config = function(_, opts)
-        require("tokyodark").setup(opts) -- calling setup is optional
-        vim.cmd [[colorscheme tokyodark]]
-    end,
-    --     config = function()
-    --         require("catppuccin").setup {
-    --             flavour = "mocha", -- latte, frappe, macchiato, mocha
-    --             term_colors = true,
-    --             transparent_background = false,
-    --             no_italic = false,
-    --             no_bold = false,
-    --             styles = {
-    --                 comments = {},
-    --                 conditionals = {},
-    --                 loops = {},
-    --                 functions = {},
-    --                 keywords = {},
-    --                 strings = {},
-    --                 variables = {},
-    --                 numbers = {},
-    --                 booleans = {},
-    --                 properties = {},
-    --                 types = {},
-    --             },
-    --             color_overrides = {
-    --                 mocha = {
-    --                     base = "#000000",
-    --                     mantle = "#000000",
-    --                     crust = "#000000",
-    --                 },
-    --             },
-    --             highlight_overrides = {
-    --                 mocha = function(C)
-    --                     return {
-    --                         TabLineSel = { bg = C.pink },
-    --                         CmpBorder = { fg = C.surface2 },
-    --                         Pmenu = { bg = C.none },
-    --                         TelescopeBorder = { link = "FloatBorder" },
-    --                     }
-    --                 end,
-    --             },
-    --         }
+    --3rd
+    -- "folke/tokyonight.nvim",
+    -- lazy = false,
+    -- priority = 1000,
+    -- config = function()
+    --   vim.cmd.colorscheme 'tokyonight-night'
+    -- end,
     --
-    --         vim.cmd.colorscheme "catppuccin"
-    --     end,
+ -- 
+    -- 4th
+    "EdenEast/nightfox.nvim",
+    lazy = false,
+    priority = 1000,
+    config = function()
+      vim.cmd.colorscheme 'carbonfox'
+    end,
+
   },
 
   {
