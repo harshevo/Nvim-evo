@@ -348,6 +348,19 @@ require('lazy').setup({
     },
   },
 
+  --bufferline
+  {
+     'akinsho/bufferline.nvim',
+      version = "*",
+      dependencies = 'nvim-tree/nvim-web-devicons',
+      opts = {
+        options = {
+          mode = "buffer",
+          separator_style = "slant",
+      },
+    },
+  },
+
   -- "gc" to comment visual regions/lines
   { 'numToStr/Comment.nvim', opts = {} },
 
