@@ -6,47 +6,44 @@ set.shiftwidth = 4
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 vim.wo.relativenumber = true
-vim.opt.fillchars = {eob = " "}
+vim.opt.fillchars = { eob = ' ' }
 vim.opt.cursorline = true
-
 
 -- vim.opt.clipboard = "unnamedplus"
 
 -- copying and pasting from system clipboard
-vim.keymap.set("x", "<leader>p", [["_dP]])
+vim.keymap.set('x', '<leader>p', [["_dP]])
 
-vim.keymap.set({"n", "v"}, "<leader>y", [["+y]])
-vim.keymap.set("n", "<leader>Y", [["+Y]])
-vim.keymap.set({"n", "v"}, "<leader>d", [["_d]])
+vim.keymap.set({ 'n', 'v' }, '<leader>y', [["+y]])
+vim.keymap.set('n', '<leader>Y', [["+Y]])
+vim.keymap.set({ 'n', 'v' }, '<leader>d', [["_d]])
 
+vim.keymap.set('i', 'jk', '<Esc>', { silent = true })
+vim.keymap.set('n', '<leader>w', ':w<CR>')
+vim.keymap.set('n', '<leader>c', ':bd<CR>')
 
-vim.keymap.set("i", "jk", "<Esc>", { silent = true })
-vim.keymap.set("n", "<leader>w", ":w<CR>")
-vim.keymap.set("n", "<leader>c", ":bd<CR>")
-
-vim.keymap.set("n", "<leader>e", ':NvimTreeToggle<CR>', {
-  noremap = true
+vim.keymap.set('n', '<leader>e', ':NvimTreeToggle<CR>', {
+  noremap = true,
 })
 
-vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
-vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv")
+vim.keymap.set('v', 'J', ":m '>+1<CR>gv=gv")
+vim.keymap.set('v', 'K', ":m '<-2<CR>gv=gv")
 
 vim.g.have_nerd_font = true
 
 --buffer change
-vim.keymap.set("n", "<S-l>", function()
+vim.keymap.set('n', '<S-l>', function()
   vim.cmd.bnext()
 end)
 
-vim.keymap.set("n", "<S-h>", function()
+vim.keymap.set('n', '<S-h>', function()
   vim.cmd.bprevious()
 end)
 
 --ToggleTerminal
-vim.keymap.set("n", "<leader>t", function()
+vim.keymap.set('n', '<leader>t', function()
   vim.cmd.ToggleTerm()
 end)
-
 
 -- disable netrw at the very start of your init.lua
 vim.g.loaded_netrw = 1
@@ -56,7 +53,6 @@ vim.g.loaded_netrwPlugin = 1
 vim.opt.termguicolors = true
 
 -- empty setup using defaults
-
 
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
 if not vim.loop.fs_stat(lazypath) then
@@ -70,7 +66,6 @@ if not vim.loop.fs_stat(lazypath) then
   }
 end
 vim.opt.rtp:prepend(lazypath)
-
 
 require('lazy').setup({
   -- NOTE: First, some plugins that don't require any configuration
@@ -101,69 +96,65 @@ require('lazy').setup({
     },
   },
 
-
   --undotree
   {
-    "jiaoshijie/undotree",
-    dependencies = "nvim-lua/plenary.nvim",
+    'jiaoshijie/undotree',
+    dependencies = 'nvim-lua/plenary.nvim',
     config = true,
     keys = { -- load the plugin only when using it's keybinding:
-      { "<leader>u", "<cmd>lua require('undotree').toggle()<cr>" },
+      { '<leader>u', "<cmd>lua require('undotree').toggle()<cr>" },
     },
   },
 
   {
-   "lukas-reineke/indent-blankline.nvim",
-    main = "ibl",
-    opts = {}
+    'lukas-reineke/indent-blankline.nvim',
+    main = 'ibl',
+    opts = {},
   },
 
   --nvim-surround
   {
-     "kylechui/nvim-surround",
-     event =  { "BufReadPre", "BufNewFile" },
-     version = "*",
-     config = true,
+    'kylechui/nvim-surround',
+    event = { 'BufReadPre', 'BufNewFile' },
+    version = '*',
+    config = true,
   },
 
   {
-    "nvim-tree/nvim-tree.lua",
-    version = "*",
+    'nvim-tree/nvim-tree.lua',
+    version = '*',
     lazy = false,
     dependencies = {
-      "nvim-tree/nvim-web-devicons",
+      'nvim-tree/nvim-web-devicons',
     },
     config = function()
-      require("nvim-tree").setup {}
+      require('nvim-tree').setup {}
     end,
   },
 
   {
-  -- amongst your other plugins
-    {'akinsho/toggleterm.nvim', version = "*", config = true}
-  -- or
+    -- amongst your other plugins
+    { 'akinsho/toggleterm.nvim', version = '*', config = true },
+    -- or
   },
 
   {
-      "windwp/nvim-autopairs",
+    'windwp/nvim-autopairs',
     -- Optional dependency
     dependencies = { 'hrsh7th/nvim-cmp' },
     config = function()
-      require("nvim-autopairs").setup {}
+      require('nvim-autopairs').setup {}
       -- If you want to automatically add `(` after selecting a function or method
-      local cmp_autopairs = require('nvim-autopairs.completion.cmp')
-      local cmp = require('cmp')
-      cmp.event:on(
-        'confirm_done',
-        cmp_autopairs.on_confirm_done()
-      )
+      local cmp_autopairs = require 'nvim-autopairs.completion.cmp'
+      local cmp = require 'cmp'
+      cmp.event:on('confirm_done', cmp_autopairs.on_confirm_done())
     end,
   },
 
   {
     'numToStr/Comment.nvim',
     opts = {
-        -- add any options here
+      -- add any options here
     },
     lazy = false,
   },
@@ -280,47 +271,47 @@ require('lazy').setup({
     --     require("tokyodark").setup(opts) -- calling setup is optional
     --     vim.cmd [[colorscheme tokyodark]]
     -- end,
-        -- config = function()
-        --     require("catppuccin").setup {
-        --         flavour = "mocha", -- latte, frappe, macchiato, mocha
-        --         term_colors = true,
-        --         transparent_background = false,
-        --         no_italic = false,
-        --         no_bold = false,
-        --         styles = {
-        --             comments = {},
-        --             conditionals = {},
-        --             loops = {},
-        --             functions = {},
-        --             keywords = {},
-        --             strings = {},
-        --             variables = {},
-        --             numbers = {},
-        --             booleans = {},
-        --             properties = {},
-        --             types = {},
-        --         },
-        --         color_overrides = {
-        --             mocha = {
-        --                 base = "#000000",
-        --                 mantle = "#000000",
-        --                 crust = "#000000",
-        --             },
-        --         },
-        --         highlight_overrides = {
-        --             mocha = function(C)
-        --                 return {
-        --                     TabLineSel = { bg = C.pink },
-        --                     CmpBorder = { fg = C.surface2 },
-        --                     Pmenu = { bg = C.none },
-        --                     TelescopeBorder = { link = "FloatBorder" },
-        --                 }
-        --             end,
-        --         },
-        --     }
-        --
-        --     vim.cmd.colorscheme "catppuccin"
-        -- end,
+    -- config = function()
+    --     require("catppuccin").setup {
+    --         flavour = "mocha", -- latte, frappe, macchiato, mocha
+    --         term_colors = true,
+    --         transparent_background = false,
+    --         no_italic = false,
+    --         no_bold = false,
+    --         styles = {
+    --             comments = {},
+    --             conditionals = {},
+    --             loops = {},
+    --             functions = {},
+    --             keywords = {},
+    --             strings = {},
+    --             variables = {},
+    --             numbers = {},
+    --             booleans = {},
+    --             properties = {},
+    --             types = {},
+    --         },
+    --         color_overrides = {
+    --             mocha = {
+    --                 base = "#000000",
+    --                 mantle = "#000000",
+    --                 crust = "#000000",
+    --             },
+    --         },
+    --         highlight_overrides = {
+    --             mocha = function(C)
+    --                 return {
+    --                     TabLineSel = { bg = C.pink },
+    --                     CmpBorder = { fg = C.surface2 },
+    --                     Pmenu = { bg = C.none },
+    --                     TelescopeBorder = { link = "FloatBorder" },
+    --                 }
+    --             end,
+    --         },
+    --     }
+    --
+    --     vim.cmd.colorscheme "catppuccin"
+    -- end,
     --
 
     --3rd
@@ -331,15 +322,53 @@ require('lazy').setup({
     --   vim.cmd.colorscheme 'tokyonight-night'
     -- end,
     --
- -- 
+    --
     -- 4th
-    "EdenEast/nightfox.nvim",
+    'EdenEast/nightfox.nvim',
     lazy = false,
     priority = 1000,
     config = function()
       vim.cmd.colorscheme 'carbonfox'
     end,
+  },
 
+  --formatter
+  {
+    'stevearc/conform.nvim',
+    event = { 'BufReadPre', 'BufNewFile' },
+    config = function()
+      local conform = require 'conform'
+
+      conform.setup {
+        formatters_by_ft = {
+          javascript = { 'pretier' },
+          typescript = { 'pretier' },
+          javascriptreact = { 'pretier' },
+          typescriptreact = { 'pretier' },
+          svelte = { 'pretier' },
+          css = { 'pretier' },
+          json = { 'pretier' },
+          yaml = { 'pretier' },
+          markdown = { 'pretier' },
+          go = { 'goimports', 'gofmt' },
+          lua = { 'stylua' },
+          python = { 'isort', 'black' },
+        },
+        format_on_save = {
+          lsb_fallback = true,
+          async = false,
+          timeout_ms = 1000,
+        },
+      }
+
+      vim.keymap.set({ 'n', 'v' }, '<leader>mp', function()
+        conform.format {
+          lsp_fallback = true,
+          async = false,
+          timeout_ms = 1000,
+        }
+      end, { desc = 'Format file or range (in visual mode)' })
+    end,
   },
 
   {
@@ -358,13 +387,13 @@ require('lazy').setup({
 
   --bufferline
   {
-     'akinsho/bufferline.nvim',
-      version = "*",
-      dependencies = 'nvim-tree/nvim-web-devicons',
-      opts = {
-        options = {
-          mode = "buffer",
-          separator_style = "slant",
+    'akinsho/bufferline.nvim',
+    version = '*',
+    dependencies = 'nvim-tree/nvim-web-devicons',
+    opts = {
+      options = {
+        mode = 'buffer',
+        separator_style = 'slant',
       },
     },
   },
@@ -401,22 +430,18 @@ require('lazy').setup({
     },
     build = ':TSUpdate',
   },
-
 }, {})
 
-
-
-require("toggleterm").setup{
+require('toggleterm').setup {
 
   open_mapping = [[c-\\=]],
   start_in_insert = true,
   insert_mappings = true,
   close_on_exit = true,
-
 }
 
 function _G.set_terminal_keymaps()
-  local opts = {noremap = true}
+  local opts = { noremap = true }
   vim.api.nvim_buf_set_keymap(0, 't', '<esc>', [[<C-\><C-n>]], opts)
   vim.api.nvim_buf_set_keymap(0, 't', 'jk', [[<C-\><C-n>]], opts)
   vim.api.nvim_buf_set_keymap(0, 't', '<C-h>', [[<C-\><C-n><C-W>h]], opts)
@@ -424,7 +449,6 @@ function _G.set_terminal_keymaps()
   vim.api.nvim_buf_set_keymap(0, 't', '<C-k>', [[<C-\><C-n><C-W>k]], opts)
   vim.api.nvim_buf_set_keymap(0, 't', '<C-l>', [[<C-\><C-n><C-W>l]], opts)
 end
-
 
 -- [[ Setting options ]]
 -- See `:help vim.o`
@@ -478,16 +502,15 @@ vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next diagnos
 --vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Open floating diagnostic message' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
 
-
-vim.api.nvim_create_user_command("DiagnosticToggle", function()
-	local config = vim.diagnostic.config
-	local vt = config().virtual_text
-	config {
-		virtual_text = not vt,
-		underline = not vt,
-		signs = not vt,
-	}
-end, { desc = "toggle diagnostic" })
+vim.api.nvim_create_user_command('DiagnosticToggle', function()
+  local config = vim.diagnostic.config
+  local vt = config().virtual_text
+  config {
+    virtual_text = not vt,
+    underline = not vt,
+    signs = not vt,
+  }
+end, { desc = 'toggle diagnostic' })
 
 vim.keymap.set('n', '<leader><S-e>', function()
   vim.cmd.DiagnosticToggle()
