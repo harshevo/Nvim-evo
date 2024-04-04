@@ -118,6 +118,14 @@ require('lazy').setup({
     opts = {}
   },
 
+  --nvim-surround
+  {
+     "kylechui/nvim-surround",
+     event =  { "BufReadPre", "BufNewFile" },
+     version = "*",
+     config = true,
+  },
+
   {
     "nvim-tree/nvim-tree.lua",
     version = "*",
