@@ -24,7 +24,7 @@ vim.opt.termguicolors = true
 vim.o.hlsearch = false
 
 -- Make line numbers default
-vim.wo.number = false
+vim.wo.number = true
 
 -- Enable mouse mode
 vim.o.mouse = 'a'
