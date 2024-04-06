@@ -21,6 +21,9 @@ vim.opt.background = 'dark'
 
 vim.opt.clipboard:append 'unnamedplus'
 
+vim.opt.splitright = true
+vim.opt.splitbelow = true
+
 --------------------------------------------------------------------------
 
 -- Set highlight on search
