@@ -2,11 +2,11 @@
 return {
   -- 1st
   -- Theme inspired by Atom
-  -- 'navarasu/onedark.nvim',
-  -- priority = 1000,
-  -- config = function()
-  --   vim.cmd.colorscheme 'onedark'
-  -- end,
+  'navarasu/onedark.nvim',
+  priority = 1000,
+  config = function()
+    vim.cmd.colorscheme 'onedark'
+  end,
 
   -- 2nd
   -- "tiagovla/tokyodark.nvim",
@@ -60,19 +60,19 @@ return {
   --
 
   --3rd
-  'folke/tokyonight.nvim',
-  lazy = false,
-  priority = 1000,
-  config = function()
-    -- vim.cmd.colorscheme 'tokyonight-night'
-    require('tokyonight').setup {
-      style = 'night',
-      transparent = false,
-      terminal_colors = true,
-    }
-
-    vim.cmd 'colorscheme tokyonight'
-  end,
+  -- 'folke/tokyonight.nvim',
+  -- lazy = false,
+  -- priority = 1000,
+  -- config = function()
+  --   -- vim.cmd.colorscheme 'tokyonight-night'
+  --   require('tokyonight').setup {
+  --     style = 'night',
+  --     transparent = false,
+  --     terminal_colors = true,
+  --   }
+  --
+  --   vim.cmd 'colorscheme tokyonight'
+  -- end,
 
   --
   --
