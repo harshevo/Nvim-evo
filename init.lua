@@ -65,10 +65,10 @@ require('lazy').setup({
 
 require('toggleterm').setup {
 
-  open_mapping = [[c-\\=]],
-  start_in_insert = true,
-  insert_mappings = true,
-  close_on_exit = true,
+  -- open_mapping = [[C-\\=]],
+  -- start_in_insert = false,
+  -- insert_mappings = false,
+  -- close_on_exit = true,
 }
 
 function _G.set_terminal_keymaps()
