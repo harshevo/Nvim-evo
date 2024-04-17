@@ -63,14 +63,6 @@ require('lazy').setup({
   },
 }, {})
 
-require('toggleterm').setup {
-
-  -- open_mapping = [[C-\\=]],
-  -- start_in_insert = false,
-  -- insert_mappings = false,
-  -- close_on_exit = true,
-}
-
 function _G.set_terminal_keymaps()
   local opts = { noremap = true }
   vim.api.nvim_buf_set_keymap(0, 't', '<esc>', [[<C-\><C-n>]], opts)

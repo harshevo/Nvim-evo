@@ -27,11 +27,6 @@ vim.keymap.set('n', '<S-h>', function()
   vim.cmd.bprevious()
 end)
 
---ToggleTerminal
-vim.keymap.set('n', '<leader>t', function()
-  vim.cmd.ToggleTerm()
-end)
-
 vim.keymap.set('n', '<leader>sv', '<C-w>v', { desc = 'Split window vertically' })
 vim.keymap.set('n', '<leader>sh', '<C-w>s', { desc = 'Split window vertically' })
 vim.keymap.set('n', '<leader>se', '<C-w>=', { desc = 'Split window vertically' })
