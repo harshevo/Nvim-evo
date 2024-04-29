@@ -59,19 +59,26 @@ return {
   --
 
   --3rd
-  -- 'folke/tokyonight.nvim',
-  -- lazy = false,
-  -- priority = 1000,
-  -- config = function()
-  --   -- vim.cmd.colorscheme 'tokyonight-night'
-  --   require('tokyonight').setup {
-  --     style = 'night',
-  --     transparent = false,
-  --     terminal_colors = true,
-  --   }
-  --
-  --   vim.cmd 'colorscheme tokyonight-night'
-  -- end,
+  'folke/tokyonight.nvim',
+  lazy = false,
+  priority = 1000,
+  config = function()
+    local bg = '#000000'
+    local bg_dark = '#000000'
+    require('tokyonight').setup {
+      style = 'night',
+      transparent = false,
+      on_colors = function(colors)
+        colors.bg = bg
+        colors.bg_dark = bg_dark
+        colors.bg_popup = bg_dark
+        colors.bg_float = bg_dark
+        colors.bg_sidebar = bg_dark
+      end,
+    }
+
+    vim.cmd 'colorscheme tokyonight-night'
+  end,
 
   -- 4th
   -- 'EdenEast/nightfox.nvim',
@@ -116,7 +123,7 @@ return {
   --       colors.border = border
   --       colors.fg = fg
   --       colors.fg_dark = fg_dark
-  --       colors.fe_float = fg
+  --       colors.fg_float = fg
   --       colors.fg_gutter = fg_gutter
   --       colors.fg_sidebar = fg_dark
   --     end,
@@ -124,13 +131,12 @@ return {
   --
   --   vim.cmd 'colorscheme tokyonight-night'
   -- end,
-  --
 
   --6th
-  'dasupradyumna/midnight.nvim',
-  lazy = false,
-  priority = 1000,
-  config = function()
-    vim.cmd.colorscheme 'midnight'
-  end,
+  -- 'dasupradyumna/midnight.nvim',
+  -- lazy = false,
+  -- priority = 1000,
+  -- config = function()
+  --   vim.cmd.colorscheme 'midnight'
+  -- end,
 }

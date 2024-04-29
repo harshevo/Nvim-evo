@@ -7,7 +7,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 vim.wo.relativenumber = true
 vim.opt.fillchars = { eob = ' ' }
-vim.opt.cursorline = true
+vim.opt.cursorline = false
 
 vim.g.have_nerd_font = true
 
