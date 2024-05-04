@@ -63,8 +63,8 @@ return {
   lazy = false,
   priority = 1000,
   config = function()
-    local bg = '#000000'
-    local bg_dark = '#000000'
+    local bg = '#19181A'
+    local bg_dark = '#19181A'
     local bg_sidebar = '#00000F'
     require('tokyonight').setup {
       style = 'night',
