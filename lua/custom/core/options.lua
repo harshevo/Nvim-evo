@@ -8,6 +8,7 @@ vim.g.maplocalleader = ' '
 vim.wo.relativenumber = true
 vim.opt.fillchars = { eob = ' ' }
 vim.opt.cursorline = false
+vim.opt.scrolloff = 8
 
 vim.g.have_nerd_font = true
 
