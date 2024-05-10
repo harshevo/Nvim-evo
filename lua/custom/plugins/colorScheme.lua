@@ -66,7 +66,7 @@ return {
     local bg = '#19181A'
     local bg_dark = '#19181A'
     local bg_sidebar = '#00000F'
-    local border = '#00000F'
+    local border = '#19181E'
     require('tokyonight').setup {
       style = 'night',
       transparent = false,
