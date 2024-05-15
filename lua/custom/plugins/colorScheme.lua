@@ -2,10 +2,10 @@
 return {
   -- 1st
   -- Theme inspired by Atom
-  -- 'navarasu/onedark.nvim',
+  -- 'olimorris/onedarkpro.nvim',
   -- priority = 1000,
   -- config = function()
-  --   vim.cmd.colorscheme 'onedark'
+  --   vim.cmd.colorscheme 'onedark_dark'
   -- end,
 
   -- 2nd
@@ -58,29 +58,29 @@ return {
   -- end,
   --
 
-  --3rd
-  'folke/tokyonight.nvim',
-  lazy = false,
-  priority = 1000,
-  config = function()
-    local bg = '#19181A'
-    local bg_dark = '#19181A'
-    local bg_sidebar = '#00000F'
-    local border = '#19181E'
-    require('tokyonight').setup {
-      style = 'night',
-      transparent = false,
-      on_colors = function(colors)
-        colors.bg = bg
-        colors.bg_dark = bg_dark
-        colors.bg_popup = bg_dark
-        colors.bg_float = border
-        colors.bg_sidebar = bg_sidebar
-      end,
-    }
-
-    vim.cmd 'colorscheme tokyonight-night'
-  end,
+  -- --3rd
+  -- 'folke/tokyonight.nvim',
+  -- lazy = false,
+  -- priority = 1000,
+  -- config = function()
+  --   local bg = '#19181A'
+  --   local bg_dark = '#19181A'
+  --   local bg_sidebar = '#00000F'
+  --   local border = '#19181E'
+  --   require('tokyonight').setup {
+  --     style = 'night',
+  --     transparent = false,
+  --     on_colors = function(colors)
+  --       colors.bg = bg
+  --       colors.bg_dark = bg_dark
+  --       colors.bg_popup = bg_dark
+  --       colors.bg_float = border
+  --       colors.bg_sidebar = bg_sidebar
+  --     end,
+  --   }
+  --
+  --   vim.cmd 'colorscheme tokyonight-night'
+  -- end,
 
   -- 4th
   -- 'EdenEast/nightfox.nvim',
@@ -140,5 +140,76 @@ return {
   -- priority = 1000,
   -- config = function()
   --   vim.cmd.colorscheme 'midnight'
+  -- end,
+  --
+  --kanagawa.nvim
+  -- 'rebelot/kanagawa.nvim',
+  -- lazy = false,
+  -- config = function()
+  --   vim.cmd.colorscheme 'kanagawa-wave'
+  -- end,
+
+  ------------------------------------------------------
+
+  -- 'olivercederborg/poimandres.nvim',
+  -- lazy = false,
+  -- priority = 1000,
+  -- config = function()
+  --   require('poimandres').setup {
+  --     -- leave this setup function empty for default config
+  --     -- or refer to the configuration section
+  --     -- for configuration options
+  --   }
+  -- end,
+  --
+  -- -- optionally set the colorscheme within lazy config
+  -- init = function()
+  --   vim.cmd 'colorscheme poimandres'
+  -- end,
+
+  -----------------------------------------------------------
+
+  -- 'tjdevries/colorbuddy.nvim',
+  -- lazy = false,
+  -- config = function()
+  --   vim.cmd.colorscheme 'gruvbuddy'
+  -- end,
+
+  ----------------------------------------------------------
+
+  -- 'kvrohit/substrata.nvim',
+  -- lazy = false,
+  -- config = function()
+  --   vim.cmd.colorscheme 'substrata'
+  -- end,
+
+  -----------------------------------------------------------
+  --
+  'projekt0n/github-nvim-theme',
+  lazy = false,
+  priority = 1000,
+  config = function()
+    -- require('github-theme').setup({
+    --   -- ...
+    -- })
+
+    vim.cmd 'colorscheme github_dark_high_contrast'
+  end,
+  --
+  ----------------------------------------------------------------
+
+  -- 'sainnhe/everforest',
+  -- lazy = false,
+  -- config = function()
+  --   vim.cmd.colorscheme 'everforest'
+  -- end,
+
+  ----------------------------------------------------------------
+
+  -- 'shaunsingh/nord.nvim',
+  -- lazy = false,
+  -- priority = 1000,
+  -- config = function()
+  --   vim.cmd.colorscheme 'nord'
   -- end,
 }
