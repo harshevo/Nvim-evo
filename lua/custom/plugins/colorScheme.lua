@@ -59,28 +59,31 @@ return {
   --
 
   -- --3rd
-  'folke/tokyonight.nvim',
-  lazy = false,
-  priority = 1000,
-  config = function()
-    local bg = '#19181A'
-    local bg_dark = '#19181A'
-    local bg_sidebar = '#00000F'
-    local border = '#19181E'
-    require('tokyonight').setup {
-      style = 'night',
-      transparent = false,
-      on_colors = function(colors)
-        colors.bg = bg
-        colors.bg_dark = bg_dark
-        colors.bg_popup = bg_dark
-        colors.bg_float = border
-        colors.bg_sidebar = bg_sidebar
-      end,
-    }
+  {
+    'folke/tokyonight.nvim',
+    lazy = false,
+    priority = 1000,
+    config = function()
+      local bg = '#19181A'
+      local bg_dark = '#19181A'
+      local bg_sidebar = '#00000F'
+      local border = '#19181E'
+      require('tokyonight').setup {
+        style = 'night',
+        transparent = false,
+        terminal_colors = true,
+        on_colors = function(colors)
+          colors.bg = bg
+          colors.bg_dark = bg_dark
+          colors.bg_popup = bg_dark
+          colors.bg_float = border
+          colors.bg_sidebar = bg_sidebar
+        end,
+      }
 
-    vim.cmd 'colorscheme tokyonight-night'
-  end,
+      vim.cmd 'colorscheme tokyonight-night'
+    end,
+  },
 
   -- 4th
   -- 'EdenEast/nightfox.nvim',
@@ -134,9 +137,13 @@ return {
   --   vim.cmd 'colorscheme tokyonight-night'
   -- end,
 
-  -- 'tjdevries/colorbuddy.nvim',
-  -- lazy = false,
-  -- config = function()
-  --   vim.cmd.colorscheme 'gruvbuddy'
-  -- end,
+  -- {
+  --   'tjdevries/colorbuddy.nvim',
+  --   lazy = false,
+  --   config = function()
+  --     vim.cmd.colorscheme 'gruvbuddy'
+  --   end,
+  -- },
+
+  -- 'RRethy/base16-nvim',
 }
