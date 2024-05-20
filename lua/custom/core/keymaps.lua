@@ -27,7 +27,9 @@ vim.keymap.set('n', '<S-h>', function()
   vim.cmd.bprevious()
 end)
 
+vim.keymap.set('n', '<leader>gb', '``')
+
 vim.keymap.set('n', '<leader>sv', '<C-w>v', { desc = 'Split window vertically' })
-vim.keymap.set('n', '<leader>sh', '<C-w>s', { desc = 'Split window vertically' })
-vim.keymap.set('n', '<leader>se', '<C-w>=', { desc = 'Split window vertically' })
+-- vim.keymap.set('n', '<leader>sh', '<C-w>s', { desc = 'Split window vertically' })
+-- vim.keymap.set('n', '<leader>se', '<C-w>=', { desc = 'Split window vertically' })
 vim.keymap.set('n', '<leader>sx', '<cmd>close<CR>', { desc = 'Split window vertically' })
