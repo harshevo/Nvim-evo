@@ -13,4 +13,8 @@ return {
     -- Adds a number of user-friendly snippets
     'rafamadriz/friendly-snippets',
   },
+  -- To Disable Auto-Cmp
+  config = function()
+    require('cmp').setup { enabled = false }
+  end,
 }
