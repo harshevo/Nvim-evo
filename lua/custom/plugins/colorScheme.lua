@@ -69,9 +69,12 @@ return {
       local bg_sidebar = '#00000F'
       local border = '#19181E'
       require('tokyonight').setup {
-        style = 'night',
+        style = 'moon',
         transparent = false,
         terminal_colors = true,
+        styles = {
+          comments = { italic = true },
+        },
         on_colors = function(colors)
           colors.bg = bg
           colors.bg_dark = bg_dark
