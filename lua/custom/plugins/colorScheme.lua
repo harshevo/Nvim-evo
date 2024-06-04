@@ -149,4 +149,8 @@ return {
   -- },
 
   -- 'RRethy/base16-nvim',
+  -- lazy = false,
+  -- config = function()
+  --   vim.cmd.colorscheme 'base16-tokyo-night-terminal-dark'
+  -- end,
 }
