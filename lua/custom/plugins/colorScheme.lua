@@ -36,7 +36,7 @@ return {
   --     vim.cmd.colorscheme 'gruvbuddy'
   --   end,
   -- },
-
+  --
   {
     'catppuccin/nvim',
     name = 'catppuccin',
@@ -92,7 +92,7 @@ return {
       vim.cmd.colorscheme 'catppuccin'
     end,
   },
-
+  --
   -- {
   --   'rebelot/kanagawa.nvim',
   --   lazy = false,
