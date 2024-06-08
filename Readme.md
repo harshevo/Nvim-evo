@@ -1,3 +1,5 @@
+# Nvim-evo
+
 ## neovim-config
 
 **This config uses Lazy as package manager**
