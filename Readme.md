@@ -2,7 +2,11 @@
 
 ### Image
 
-![](/assets/sc.png)
+1. ![](/assets/sc.png)
+2. ![](/assets/sc1.png)
+3. ![](/assets/sc2.png)
+4. ![](/assets/sc3.png)
+5. ![](/assets/sc4.png)
 
 ### How to use this Neovim Config ?
 
