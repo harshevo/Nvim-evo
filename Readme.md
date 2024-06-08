@@ -2,7 +2,7 @@
 
 **This config uses Lazy as package manager**
 
-<details open>
+<details closed>
 <summary>Images (Click to expand!)</summary>
 
 1.  ![](/assets/sc.png)
