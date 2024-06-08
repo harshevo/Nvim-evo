@@ -1,8 +1,12 @@
 ## neovim-config
 
+### Image
+
+![](/assets/sc.png)
+
 ### How to use this Neovim Config ?
 
-** Steps : **
+**Steps :**
 
 1. Install Latest Neovim
 2. clone this repository in your .config folder
@@ -12,7 +16,6 @@
 
    ```
      git clone https://github.com/harshevo/nvim-cconfig.git ~/.config/nvim
-
    ```
 
    For Windows :
@@ -21,14 +24,12 @@
 
    ```
    git clone https://github.com/harshevo/nvim-cconfig.git %USERPROFILE%\AppData\Local\nvim && nvim
-
    ```
 
    If you are using pwsh:
 
    ```
-   git clone https:://github.comr/harshevo/nvin-cconfig.git $ENV:USERPROFILE\AppData\Local\nvim && nvim
-
+   git clone https:://github.comr/harshevo/nvim-cconfig.git $ENV:USERPROFILE\AppData\Local\nvim && nvim
    ```
 
    If any of the above path is not working :
@@ -43,13 +44,12 @@
 
    ```
    C:\Users\$ENV:USERNAME\AppData\Local\nvim
-
    ```
 
 - ColorScheme can be changed in ColorScheme.lua
 - Keymaps are in custom/core/keymaps.lua
 
-** Keymaps **
+**Keymaps**
 
 > [!NOTE]
 > leader == space
