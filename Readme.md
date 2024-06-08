@@ -5,11 +5,9 @@
 <details closed>
 <summary>Images (Click to expand!)</summary>
 
-1.  ![](/assets/sc.png)
-
-2.  ![](/assets/sc2.png)
-
-3.  ![](/assets/sc4.png)
+![](/assets/sc.png)
+![](/assets/sc2.png)
+![](/assets/sc4.png)
 
 </details>
 
