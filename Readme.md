@@ -2,15 +2,15 @@
 
 **This config uses Lazy as package manager**
 
-### Images(Click to expand!)
-
 <details open>
+<summary>Images (Click to expand!)</summary>
 
 1.  ![](/assets/sc.png)
 
 2.  ![](/assets/sc2.png)
 
 3.  ![](/assets/sc4.png)
+
 </details>
 
 ### How to use this Neovim Config ?
