@@ -1,12 +1,14 @@
 ## neovim-config
 
-### Image
+**This config uses Lazy as package manager**
 
-1. ![](/assets/sc.png)
-2. ![](/assets/sc1.png)
-3. ![](/assets/sc2.png)
-4. ![](/assets/sc3.png)
-5. ![](/assets/sc4.png)
+### Images
+
+1.  ![](/assets/sc.png)
+
+2.  ![](/assets/sc2.png)
+
+3.  ![](/assets/sc4.png)
 
 ### How to use this Neovim Config ?
 
