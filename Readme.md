@@ -24,7 +24,7 @@
    For Linux :
 
    ```
-     git clone https://github.com/harshevo/nvim-cconfig.git ~/.config/nvim
+     git clone https://github.com/harshevo/Nvim-evo.git ~/.config/nvim
    ```
 
    For Windows :
@@ -32,13 +32,13 @@
    If you are using CMD -
 
    ```
-   git clone https://github.com/harshevo/nvim-cconfig.git %USERPROFILE%\AppData\Local\nvim && nvim
+   git clone https://github.com/harshevo/Nvim-evo.git %USERPROFILE%\AppData\Local\nvim && nvim
    ```
 
    If you are using pwsh:
 
    ```
-   git clone https:://github.comr/harshevo/nvim-cconfig.git $ENV:USERPROFILE\AppData\Local\nvim && nvim
+   git clone https://github.com/harshevo/Nvim-evo.git $ENV:USERPROFILE\AppData\Local\nvim && nvim
    ```
 
    If any of the above path is not working :
