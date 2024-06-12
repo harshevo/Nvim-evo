@@ -1,7 +1,7 @@
 local set = vim.opt -- set options
-set.tabstop = 4
-set.softtabstop = 4
-set.shiftwidth = 4
+set.tabstop = 2
+set.softtabstop = 2
+set.shiftwidth = 2
 
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
@@ -60,5 +60,3 @@ vim.o.completeopt = 'menuone,noselect'
 
 -- NOTE: You should make sure your terminal supports this
 vim.o.termguicolors = true
-
-
