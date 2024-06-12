@@ -103,14 +103,32 @@ return {
   --   end,
   -- },
 
+  -- {
+  --   'oxfist/night-owl.nvim',
+  --   lazy = false, -- make sure we load this during startup if it is your main colorscheme
+  --   priority = 1000, -- make sure to load this before all the other start plugins
+  --   config = function()
+  --     -- load the colorscheme here
+  --     require('night-owl').setup()
+  --     vim.cmd.colorscheme 'night-owl'
+  --   end,
+  -- },
+
   {
-    'oxfist/night-owl.nvim',
-    lazy = false, -- make sure we load this during startup if it is your main colorscheme
-    priority = 1000, -- make sure to load this before all the other start plugins
+    'rose-pine/neovim',
+    name = 'rose-pine',
+
     config = function()
-      -- load the colorscheme here
-      require('night-owl').setup()
-      vim.cmd.colorscheme 'night-owl'
+      require('rose-pine').setup {
+        variant = 'auto',
+
+        styles = {
+          bold = false,
+          italic = false,
+          transparency = false,
+        },
+      }
+      vim.cmd.colorscheme 'rose-pine'
     end,
   },
 }
