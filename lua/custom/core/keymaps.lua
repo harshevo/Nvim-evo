@@ -138,3 +138,8 @@ keymap('n', '<leader>ds', "<cmd>lua require'dap.ui.widgets'.centered_float(requi
 keymap('i', '<F5>', function()
   require('dap').toggle_breakpoint()
 end, { silent = true })
+
+keymap('n', '<C-l>hi', '<cmd>lua vim.lsp.buf.incoming_calls()<cr>', { silent = true, desc = 'incoming calls' })
+keymap('n', '<C-l>ho', '<cmd>lua vim.lsp.buf.outgoing_calls()<cr>', { silent = true, desc = 'outgoing calls' })
+
+-------------------------------------------------------------------------
