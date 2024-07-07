@@ -6,15 +6,16 @@ return {
     config = function()
       local transparent = false -- set to true if you would like to enable transparency
 
-      local bg = '#011628'
-      local bg_dark = '#011423'
-      local bg_highlight = '#143652'
-      local bg_search = '#0A64AC'
-      local bg_visual = '#275378'
-      local fg = '#CBE0F0'
-      local fg_dark = '#B4D0E9'
-      local fg_gutter = '#627E97'
-      local border = '#547998'
+      local bg = '#161616'
+      local bg_dark = '#161616'
+      local side_bar = '#131313'
+      local bg_highlight = '#30293A'
+      local bg_search = '#393939'
+      local bg_visual = '#30293A'
+      local fg = '#EEEEEE'
+      local fg_dark = '#EEEEEE'
+      local fg_gutter = '#393939'
+      local border = '#393939'
 
       require('tokyonight').setup {
         style = 'night',
@@ -30,14 +31,16 @@ return {
           colors.bg_highlight = bg_highlight
           colors.bg_popup = bg_dark
           colors.bg_search = bg_search
-          colors.bg_sidebar = transparent and colors.none or bg_dark
+          colors.bg_sidebar = transparent and colors.none or side_bar
           colors.bg_statusline = transparent and colors.none or bg_dark
           colors.bg_visual = bg_visual
           colors.border = border
           colors.fg = fg
           colors.fg_dark = fg_dark
-          colors.fg_float = fg
+          colors.bg_float = '#131313'
+          colors.fg_float = '#EEEEEE'
           colors.fg_gutter = fg_gutter
+          colors.bg_statusline = '#131313'
           colors.fg_sidebar = fg_dark
         end,
       }
