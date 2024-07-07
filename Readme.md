@@ -7,9 +7,9 @@
 <details closed>
 <summary>Images (Click to expand!)</summary>
 
-![](/assets/sc.png)
+![](/assets/sc1.png)
 ![](/assets/sc2.png)
-![](/assets/sc4.png)
+![](/assets/sc3.png)
 
 </details>
 
