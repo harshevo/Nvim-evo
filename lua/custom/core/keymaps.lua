@@ -143,3 +143,7 @@ keymap('n', '<C-l>hi', '<cmd>lua vim.lsp.buf.incoming_calls()<cr>', { silent = t
 keymap('n', '<C-l>ho', '<cmd>lua vim.lsp.buf.outgoing_calls()<cr>', { silent = true, desc = 'outgoing calls' })
 
 -------------------------------------------------------------------------
+
+--cp cpp
+
+keymap('n', '<F10>', '<cmd>!g++ -o %< % && ./%< < input<cr>')
