@@ -109,6 +109,8 @@ return {
           init_options = { clangdFileStatus = true },
           filetypes = { 'c', 'cpp' },
         },
+
+        pyright = true,
       }
 
       local servers_to_install = vim.tbl_filter(function(key)
