@@ -147,3 +147,8 @@ keymap('n', '<C-l>ho', '<cmd>lua vim.lsp.buf.outgoing_calls()<cr>', { silent = t
 --cp cpp
 
 keymap('n', '<F10>', '<cmd>!g++ -o %< % && ./%< < input<cr>')
+
+--dabod
+--database
+
+keymap('n', '<F12>', '<cmd>DBUI<cr>')
