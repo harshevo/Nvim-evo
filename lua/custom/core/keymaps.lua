@@ -151,4 +151,4 @@ keymap('n', '<F10>', '<cmd>!g++ -o %< % && ./%< < input<cr>')
 --dabod
 --database
 
-keymap('n', '<F12>', '<cmd>DBUI<cr>')
+keymap('n', '<leader>od', '<cmd>DBUIToggle<cr>')

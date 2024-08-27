@@ -1,4 +1,4 @@
-vim.keymap.set('n', '<space>od', function()
+vim.keymap.set('n', '<F12>', function()
   require('dbee').open()
 end)
 
