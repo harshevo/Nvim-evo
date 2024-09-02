@@ -20,11 +20,9 @@ vim.g.loaded_netrwPlugin = 1
 vim.opt.termguicolors = true
 vim.opt.background = 'dark'
 
-vim.opt.clipboard:append 'unnamedplus'
 
 vim.opt.splitright = true
 vim.opt.splitbelow = true
-
 --------------------------------------------------------------------------
 
 -- Set highlight on search
@@ -60,3 +58,4 @@ vim.o.completeopt = 'menuone,noselect'
 
 -- NOTE: You should make sure your terminal supports this
 vim.o.termguicolors = true
+
