@@ -20,7 +20,6 @@ vim.g.loaded_netrwPlugin = 1
 vim.opt.termguicolors = true
 vim.opt.background = 'dark'
 
-
 vim.opt.splitright = true
 vim.opt.splitbelow = true
 --------------------------------------------------------------------------
@@ -31,7 +30,7 @@ vim.o.hlsearch = false
 -- Make line numbers default
 vim.wo.number = true
 
-vim.wo.wrap = false
+vim.wo.wrap = true
 
 -- Enable mouse mode
 vim.o.mouse = 'a'
@@ -58,4 +57,3 @@ vim.o.completeopt = 'menuone,noselect'
 
 -- NOTE: You should make sure your terminal supports this
 vim.o.termguicolors = true
-
