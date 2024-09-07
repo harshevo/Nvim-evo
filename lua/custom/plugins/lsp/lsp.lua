@@ -142,6 +142,10 @@ return {
           capabilities = capabilities,
         }, config)
 
+        if name == 'tsserver' then
+          name = 'ts_ls'
+        end
+
         lspconfig[name].setup(config)
       end
 
