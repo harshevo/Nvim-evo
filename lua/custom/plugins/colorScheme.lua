@@ -6,7 +6,7 @@ return {
     config = function()
       local transparent = false -- set to true if you would like to enable transparency
 
-      local bg = '#161616'
+      local bg = '#151515'
       local bg_dark = '#161616'
       local side_bar = '#131313'
       local bg_highlight = '#30293A'
@@ -43,6 +43,12 @@ return {
           colors.bg_statusline = '#131313'
           colors.fg_sidebar = fg_dark
         end,
+
+        -- on_highlights = function(hl, colors)
+        --   hl.keywords = { fg = bg_search }
+        --   hl.Function = { fg = '#ffffff' }
+        --   hl.Variables = { fg = '#ffffff' }
+        -- end,
       }
       vim.cmd 'colorscheme tokyonight'
     end,
@@ -174,6 +180,13 @@ return {
   --       bold = false,
   --     }
   --     vim.cmd 'colorscheme gruber-darker'
+  --   end,
+  -- },
+
+  -- {
+  --   'slugbyte/lackluster.nvim',
+  --   config = function()
+  --     vim.cmd.colorscheme 'lackluster'
   --   end,
   -- },
 }
