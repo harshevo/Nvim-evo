@@ -19,6 +19,7 @@ return {
         go = { 'goimports', 'gofmt' },
         lua = { 'stylua' },
         python = { 'isort', 'black' },
+        cpp = { 'clang-format' },
       },
       format_on_save = {
         lsb_fallback = true,

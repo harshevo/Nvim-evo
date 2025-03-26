@@ -106,6 +106,10 @@ return {
           { name = 'buffer' },
         },
       }),
+
+      cmp.setup.filetype('cpp', {
+        enabled = false, -- Disable nvim-cmp for C++ files
+      }),
     }
   end,
 }
