@@ -163,4 +163,4 @@ vim.keymap.set('x', 'Y', '"+Y')
 require 'runner'
 
 -- Optional: extra keybinding here instead of inside runner.lua
-vim.keymap.set('n', '<F5>', ':RunNow<CR>', { noremap = true, silent = true })
+vim.keymap.set('n', '<leader>r', ':RunNow<CR>', { noremap = true, silent = true })
