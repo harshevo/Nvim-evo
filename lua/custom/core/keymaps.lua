@@ -158,3 +158,9 @@ vim.keymap.set('n', 'yy', '"+yy')
 vim.keymap.set('n', 'Y', '"+Y')
 vim.keymap.set('x', 'y', '"+y')
 vim.keymap.set('x', 'Y', '"+Y')
+
+-- Import runner (this will also register the :RunNow command)
+require 'runner'
+
+-- Optional: extra keybinding here instead of inside runner.lua
+vim.keymap.set('n', '<F5>', ':RunNow<CR>', { noremap = true, silent = true })
