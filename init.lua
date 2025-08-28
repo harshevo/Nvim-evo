@@ -2,6 +2,9 @@
 
 require 'custom.core'
 require 'custom.lazy'
+require('helpsearch').setup {
+  help_dir = '~/dev/help',
+}
 
 -- function _G.set_terminal_keymaps()
 --   local opts = { noremap = true }
