@@ -66,3 +66,6 @@
 1. File Tree Toggle : leader + e
 2. Telescope Find Files : leader + ff
 3. Telescope Find with Grep : leader + fg
+
+> [!NOTE]
+change the directory of helpSearch in init.lua 
