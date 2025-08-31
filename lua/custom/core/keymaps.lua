@@ -142,6 +142,9 @@ end, { silent = true })
 keymap('n', '<C-l>hi', '<cmd>lua vim.lsp.buf.incoming_calls()<cr>', { silent = true, desc = 'incoming calls' })
 keymap('n', '<C-l>ho', '<cmd>lua vim.lsp.buf.outgoing_calls()<cr>', { silent = true, desc = 'outgoing calls' })
 
+-- Make <Esc> leave terminal job mode
+vim.api.nvim_set_keymap('t', '<Esc>', [[<C-\><C-n>]], { noremap = true })
+
 -------------------------------------------------------------------------
 
 --cp cpp
