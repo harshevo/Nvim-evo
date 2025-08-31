@@ -84,7 +84,10 @@ local function run_current_file()
   vim.api.nvim_set_current_buf(bufnr)
 
   -- try to send the command; if it fails (channel died) recreate the terminal and retry
-  local ok, send_err = pcall(vim.api.nvim_chan_send, chan, cmd .. '\n')
+  local ok, send_err = pcall(function()
+    vim.api.nvim_chan_send(chan, 'clear\n')
+    vim.api.nvim_chan_send(chan, cmd .. '\n')
+  end)
   if not ok then
     -- channel might have died: recreate terminal and retry once
     create_terminal()
