@@ -1,58 +1,58 @@
 return {
   -- --3rd
-  {
-    'folke/tokyonight.nvim',
-    priority = 1000,
-    config = function()
-      local transparent = false -- set to true if you would like to enable transparency
-
-      local bg = '#151515'
-      local bg_dark = '#161616'
-      local side_bar = '#131313'
-      local bg_highlight = '#30293A'
-      local bg_search = '#393939'
-      local bg_visual = '#30293A'
-      local fg = '#EEEEEE'
-      local fg_dark = '#EEEEEE'
-      local fg_gutter = '#393939'
-      local border = '#393939'
-
-      require('tokyonight').setup {
-        style = 'night',
-        transparent = transparent,
-        styles = {
-          sidebars = transparent and 'transparent' or 'dark',
-          floats = transparent and 'transparent' or 'dark',
-        },
-        on_colors = function(colors)
-          colors.bg = bg
-          colors.bg_dark = transparent and colors.none or bg_dark
-          colors.bg_float = transparent and colors.none or bg_dark
-          colors.bg_highlight = bg_highlight
-          colors.bg_popup = bg_dark
-          colors.bg_search = bg_search
-          colors.bg_sidebar = transparent and colors.none or side_bar
-          colors.bg_statusline = transparent and colors.none or bg_dark
-          colors.bg_visual = bg_visual
-          colors.border = border
-          colors.fg = fg
-          colors.fg_dark = fg_dark
-          colors.bg_float = '#131313'
-          colors.fg_float = '#EEEEEE'
-          colors.fg_gutter = fg_gutter
-          colors.bg_statusline = '#131313'
-          colors.fg_sidebar = fg_dark
-        end,
-
-        -- on_highlights = function(hl, colors)
-        --   hl.keywords = { fg = bg_search }
-        --   hl.Function = { fg = '#ffffff' }
-        --   hl.Variables = { fg = '#ffffff' }
-        -- end,
-      }
-      vim.cmd 'colorscheme tokyonight'
-    end,
-  },
+  -- {
+  --   'folke/tokyonight.nvim',
+  --   priority = 1000,
+  --   config = function()
+  --     local transparent = false -- set to true if you would like to enable transparency
+  --
+  --     local bg = '#151515'
+  --     local bg_dark = '#161616'
+  --     local side_bar = '#131313'
+  --     local bg_highlight = '#30293A'
+  --     local bg_search = '#393939'
+  --     local bg_visual = '#30293A'
+  --     local fg = '#EEEEEE'
+  --     local fg_dark = '#EEEEEE'
+  --     local fg_gutter = '#393939'
+  --     local border = '#393939'
+  --
+  --     require('tokyonight').setup {
+  --       style = 'night',
+  --       transparent = transparent,
+  --       styles = {
+  --         sidebars = transparent and 'transparent' or 'dark',
+  --         floats = transparent and 'transparent' or 'dark',
+  --       },
+  --       on_colors = function(colors)
+  --         colors.bg = bg
+  --         colors.bg_dark = transparent and colors.none or bg_dark
+  --         colors.bg_float = transparent and colors.none or bg_dark
+  --         colors.bg_highlight = bg_highlight
+  --         colors.bg_popup = bg_dark
+  --         colors.bg_search = bg_search
+  --         colors.bg_sidebar = transparent and colors.none or side_bar
+  --         colors.bg_statusline = transparent and colors.none or bg_dark
+  --         colors.bg_visual = bg_visual
+  --         colors.border = border
+  --         colors.fg = fg
+  --         colors.fg_dark = fg_dark
+  --         colors.bg_float = '#131313'
+  --         colors.fg_float = '#EEEEEE'
+  --         colors.fg_gutter = fg_gutter
+  --         colors.bg_statusline = '#131313'
+  --         colors.fg_sidebar = fg_dark
+  --       end,
+  --
+  --       -- on_highlights = function(hl, colors)
+  --       --   hl.keywords = { fg = bg_search }
+  --       --   hl.Function = { fg = '#ffffff' }
+  --       --   hl.Variables = { fg = '#ffffff' }
+  --       -- end,
+  --     }
+  --     vim.cmd 'colorscheme tokyonight'
+  --   end,
+  -- },
   --
   -- --
   -- --     vim.cmd 'colorscheme tokyonight-night'
@@ -189,4 +189,18 @@ return {
   --     vim.cmd.colorscheme 'lackluster'
   --   end,
   -- },
+
+  {
+    'blazkowolf/gruber-darker.nvim',
+    opts = {
+      bold = false,
+      italic = {
+        strings = false,
+      },
+    },
+
+    config = function()
+      vim.cmd.colorscheme 'gruber-darker'
+    end,
+  },
 }
