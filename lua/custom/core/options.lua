@@ -10,6 +10,10 @@ vim.opt.fillchars = { eob = ' ' }
 vim.opt.cursorline = false
 vim.opt.scrolloff = 8
 
+vim.g.loaded_matchparen = 1
+-- vim.g.loaded_matchbracket = false
+-- vim.opt.matchparen = false
+
 vim.g.have_nerd_font = true
 
 -- disable netrw at the very start of your init.lua
