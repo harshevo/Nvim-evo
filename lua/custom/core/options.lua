@@ -9,8 +9,9 @@ vim.wo.relativenumber = true
 vim.opt.fillchars = { eob = ' ' }
 vim.opt.cursorline = false
 vim.opt.scrolloff = 8
+vim.opt.guicursor = ''
 
-vim.g.loaded_matchparen = 1
+-- vim.g.loaded_matchparen = 1
 -- vim.g.loaded_matchbracket = false
 -- vim.opt.matchparen = false
 
