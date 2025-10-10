@@ -108,11 +108,11 @@ return {
       }),
 
       cmp.setup.filetype('cpp', {
-        enabled = false, -- Disable nvim-cmp for C++ files
+        enabled = true, -- Disable nvim-cmp for C++ files
       }),
 
       cmp.setup.filetype('c', {
-        enabled = false, -- Disable nvim-cmp for C++ files
+        enabled = true, -- Disable nvim-cmp for C++ files
       }),
     }
   end,

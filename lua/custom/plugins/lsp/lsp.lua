@@ -70,7 +70,15 @@ return {
         },
 
         clangd = {
-          init_options = { clangdFileStatus = true },
+          cmd = {
+            'clangd',
+            '--function-arg-placeholders=0',
+            '--fallback-style=Google',
+          },
+          init_options = {
+            clangdFileStatus = true,
+            usePlaceholders = false,
+          },
           filetypes = { 'c', 'cpp' },
         },
 
