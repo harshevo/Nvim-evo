@@ -32,38 +32,33 @@ return {
 
       local servers = {
         bashls = true,
-        gopls = {
-          settings = {
-            gopls = {
-              hints = {
-                assignVariableTypes = true,
-                compositeLiteralFields = true,
-                compositeLiteralTypes = true,
-                constantValues = true,
-                functionTypeParameters = true,
-                parameterNames = true,
-                rangeVariableTypes = true,
-              },
-            },
-          },
-        },
+        -- gopls = {
+        --   settings = {
+        --     gopls = {
+        --       hints = {
+        --         assignVariableTypes = true,
+        --         compositeLiteralFields = true,
+        --         compositeLiteralTypes = true,
+        --         constantValues = true,
+        --         functionTypeParameters = true,
+        --         parameterNames = true,
+        --         rangeVariableTypes = true,
+        --       },
+        --     },
+        --   },
+        -- },
         lua_ls = {
           server_capabilities = {
             semanticTokensProvider = vim.NIL,
           },
         },
-        rust_analyzer = true,
-        svelte = true,
-        templ = true,
-        cssls = true,
+        -- rust_analyzer = true,
+        -- svelte = true,
+        -- templ = true,
+        -- cssls = true,
 
         -- Probably want to disable formatting for this lang server
-        tsserver = {
-          server_capabilities = {
-            documentFormattingProvider = false,
-          },
-        },
-        biome = true,
+        -- biome = true,
 
         jsonls = {
           settings = {
