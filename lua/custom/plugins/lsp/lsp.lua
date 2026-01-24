@@ -82,6 +82,7 @@ return {
           filetypes = { 'c', 'cpp' },
         },
 
+        vtsls = true,
         pyright = true,
         dockerls = true,
       }
@@ -100,6 +101,7 @@ return {
 
       local ensure_installed = {
         'stylua',
+        'vtsls',
         'lua_ls',
         'delve',
         'tailwindcss-language-server',
