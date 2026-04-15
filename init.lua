@@ -1,5 +1,15 @@
 --test--
 
+do
+  local orig_notify = vim.notify
+  vim.notify = function(msg, level, opts)
+    if level ~= nil and level < vim.log.levels.ERROR then
+      return
+    end
+    return orig_notify(msg, level, opts)
+  end
+end
+
 require 'custom.core'
 require 'custom.lazy'
 require('helpsearch').setup {

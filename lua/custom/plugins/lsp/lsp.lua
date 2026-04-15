@@ -47,6 +47,7 @@ return {
         },
 
         yamlls = {
+          filetypes = { 'yaml' },
           settings = {
             yaml = {
               schemaStore = { enable = false, url = '' },
@@ -60,12 +61,6 @@ return {
           settings = {
             codelens = { enable = true },
             inlayHints = { enable = true },
-          },
-          filetypes = {
-            'ocaml',
-            'ocaml.interface',
-            'ocaml.menhir',
-            'ocaml.cram',
           },
         },
 
@@ -105,6 +100,11 @@ return {
         'lua_ls',
         'delve',
         'tailwindcss-language-server',
+        'prettier',
+        'goimports',
+        'isort',
+        'black',
+        'clang-format',
       }
       vim.list_extend(ensure_installed, servers_to_install)
 
@@ -121,15 +121,15 @@ return {
           name = 'ts_ls'
         end
 
-        -- Register configuration
-        pcall(function()
-          vim.lsp.config(name, cfg_table)
-        end)
+        -- Skip manual_install servers whose binary isn't on $PATH yet
+        if cfg_table.manual_install and vim.fn.executable(name) == 0 then
+          goto continue
+        end
 
-        -- Enable it for its filetypes
-        pcall(function()
-          vim.lsp.enable(name)
-        end)
+        pcall(function() vim.lsp.config(name, cfg_table) end)
+        pcall(function() vim.lsp.enable(name) end)
+
+        ::continue::
       end
 
       -- === LspAttach: keymaps & overrides ===
@@ -152,7 +152,8 @@ return {
           vim.keymap.set('n', 'gr', builtin.lsp_references, { buffer = bufnr })
           vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, { buffer = bufnr })
           vim.keymap.set('n', 'gT', vim.lsp.buf.type_definition, { buffer = bufnr })
-          vim.keymap.set('n', 'K', vim.lsp.buf.hover, { buffer = bufnr })
+          vim.keymap.set('n', 'K', function() vim.lsp.buf.hover { border = 'single' } end, { buffer = bufnr })
+          vim.keymap.set('i', '<C-k>', function() vim.lsp.buf.signature_help { border = 'single' } end, { buffer = bufnr })
           vim.keymap.set('n', '<space>cr', vim.lsp.buf.rename, { buffer = bufnr })
           vim.keymap.set('n', '<space>ca', vim.lsp.buf.code_action, { buffer = bufnr })
 
@@ -169,10 +170,12 @@ return {
       })
 
       -- === Diagnostics & UI borders ===
-      local _border = 'single'
-      vim.diagnostic.config { float = { border = _border } }
-      vim.lsp.handlers['textDocument/hover'] = vim.lsp.with(vim.lsp.handlers.hover, { border = _border })
-      vim.lsp.handlers['textDocument/signatureHelp'] = vim.lsp.with(vim.lsp.handlers.signature_help, { border = _border })
+      vim.diagnostic.config {
+        float = { border = 'single' },
+        signs = { severity = { min = vim.diagnostic.severity.ERROR } },
+        virtual_text = { severity = { min = vim.diagnostic.severity.ERROR } },
+        underline = { severity = { min = vim.diagnostic.severity.ERROR } },
+      }
 
       -- === Autoformat on save ===
       vim.api.nvim_create_autocmd('BufWritePre', {
