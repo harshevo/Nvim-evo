@@ -21,12 +21,25 @@ return {
         capabilities = require('cmp_nvim_lsp').default_capabilities()
       end
 
+      -- Normalize vim.NIL (JSON null) -> nil in server_capabilities so that
+      -- built-in runtime handlers (e.g. semantic_tokens.lua) don't try to
+      -- index a userdata value. Must run before any LspAttach callback fires,
+      -- so hook it via on_init rather than LspAttach.
+      local function normalize_server_capabilities(client)
+        if client and client.server_capabilities then
+          for k, v in pairs(client.server_capabilities) do
+            if type(v) == 'userdata' then
+              client.server_capabilities[k] = nil
+            end
+          end
+        end
+      end
+
       -- === Language servers definition ===
       local servers = {
         bashls = true,
 
         lua_ls = {
-          server_capabilities = { semanticTokensProvider = vim.NIL },
           settings = {
             Lua = {
               runtime = { version = 'LuaJIT' },
@@ -126,6 +139,14 @@ return {
           goto continue
         end
 
+        local user_on_init = cfg_table.on_init
+        cfg_table.on_init = function(client, init_result)
+          normalize_server_capabilities(client)
+          if user_on_init then
+            return user_on_init(client, init_result)
+          end
+        end
+
         pcall(function() vim.lsp.config(name, cfg_table) end)
         pcall(function() vim.lsp.enable(name) end)
 
@@ -139,6 +160,16 @@ return {
         callback = function(args)
           local bufnr = args.buf
           local client = assert(vim.lsp.get_client_by_id(args.data.client_id))
+
+          -- Normalize vim.NIL (from JSON null in server responses) to nil,
+          -- otherwise indexing e.g. semanticTokensProvider crashes.
+          if client.server_capabilities then
+            for k, v in pairs(client.server_capabilities) do
+              if type(v) == 'userdata' then
+                client.server_capabilities[k] = nil
+              end
+            end
+          end
 
           local settings = servers[client.name]
           if type(settings) ~= 'table' then

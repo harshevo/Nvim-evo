@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nvim --headless \"+Lazy! sync\" +qa)",
+      "Bash(brew list *)",
+      "Bash(nvim --version)",
+      "Bash(git checkout *)",
+      "Bash(nvim --headless \"+lua print\\('treesitter ok:', pcall\\(require, 'nvim-treesitter.configs'\\)\\)\" \"+lua require\\('nvim-treesitter.configs'\\).setup{ensure_installed={'lua'}, highlight={enable=true}}\" \"+TSUpdateSync lua\" +qa)",
+      "Bash(nvim --headless \"+checkhealth\" \"+w! /tmp/checkhealth.txt\" +qa)",
+      "Bash(nvim --headless \"+checkhealth\" \"+w! /tmp/checkhealth2.txt\" +qa)",
+      "Bash(nvim --headless \"+checkhealth\" \"+w! /tmp/checkhealth5.txt\" +qa)"
+    ]
+  }
+}
