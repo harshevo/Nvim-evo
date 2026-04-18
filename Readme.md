@@ -68,4 +68,4 @@
 3. Telescope Find with Grep : leader + fg
 
 > [!NOTE]
-change the directory of helpSearch in init.lua 
+> change the directory of helpSearch in init.lua

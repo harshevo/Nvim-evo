@@ -10,6 +10,8 @@ do
   end
 end
 
+vim.env.PATH = vim.env.PATH .. ':/usr/bin'
+
 require 'custom.core'
 require 'custom.lazy'
 require('helpsearch').setup {
