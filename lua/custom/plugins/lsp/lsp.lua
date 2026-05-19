@@ -1,6 +1,8 @@
 return {
   {
     'neovim/nvim-lspconfig',
+    event = { 'BufReadPre', 'BufNewFile' },
+    cmd = { 'LspInfo', 'LspInstall', 'LspUninstall', 'Mason' },
     dependencies = {
       'folke/neodev.nvim',
       'williamboman/mason.nvim',
@@ -176,14 +178,15 @@ return {
             settings = {}
           end
 
-          local builtin = require 'telescope.builtin'
-
           vim.opt_local.omnifunc = 'v:lua.vim.lsp.omnifunc'
-          vim.keymap.set('n', 'gd', builtin.lsp_definitions, { buffer = bufnr })
-          vim.keymap.set('n', 'gr', builtin.lsp_references, { buffer = bufnr })
+          -- Defer the telescope require until the keymap is actually pressed,
+          -- so opening a code file doesn't drag telescope into startup.
+          vim.keymap.set('n', 'gd', function() require('telescope.builtin').lsp_definitions() end, { buffer = bufnr })
+          vim.keymap.set('n', 'gr', function() require('telescope.builtin').lsp_references() end, { buffer = bufnr })
           vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, { buffer = bufnr })
           vim.keymap.set('n', 'gT', vim.lsp.buf.type_definition, { buffer = bufnr })
-          vim.keymap.set('n', 'K', function() vim.lsp.buf.hover { border = 'single' } end, { buffer = bufnr })
+          vim.keymap.set('n', 'K', function() vim.lsp.buf.hover { border = 'single', max_width = 100 } end, { buffer = bufnr, desc = 'LSP hover (press K again to focus)' })
+          vim.keymap.set('n', 'gK', function() vim.lsp.buf.signature_help { border = 'single' } end, { buffer = bufnr, desc = 'LSP signature help' })
           vim.keymap.set('i', '<C-k>', function() vim.lsp.buf.signature_help { border = 'single' } end, { buffer = bufnr })
           vim.keymap.set('n', '<space>cr', vim.lsp.buf.rename, { buffer = bufnr })
           vim.keymap.set('n', '<space>ca', vim.lsp.buf.code_action, { buffer = bufnr })

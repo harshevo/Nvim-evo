@@ -192,7 +192,8 @@ return {
 
   {
     'blazkowolf/gruber-darker.nvim',
-
+    lazy = false,
+    priority = 1000,
     config = function()
       require('gruber-darker').setup {
         bold = false,

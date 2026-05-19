@@ -1,11 +1,5 @@
 local M = {}
 
-local pickers = require 'telescope.pickers'
-local finders = require 'telescope.finders'
-local conf = require('telescope.config').values
-local actions = require 'telescope.actions'
-local action_state = require 'telescope.actions.state'
-
 -- Run apropos and normalize entries
 local function get_man_entries()
   local handle = io.popen 'man -k .'
@@ -35,6 +29,13 @@ local function get_man_entries()
 end
 
 function M.search_man_pages()
+  -- Lazy-require Telescope so the module itself stays cheap to load at startup.
+  local pickers = require 'telescope.pickers'
+  local finders = require 'telescope.finders'
+  local conf = require('telescope.config').values
+  local actions = require 'telescope.actions'
+  local action_state = require 'telescope.actions.state'
+
   local entries = get_man_entries()
 
   pickers

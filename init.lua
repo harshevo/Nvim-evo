@@ -1,4 +1,5 @@
---test--
+-- Enable bytecode cache (Neovim 0.9+). Must run before any require().
+vim.loader.enable()
 
 do
   local orig_notify = vim.notify
@@ -11,6 +12,14 @@ do
 end
 
 vim.env.PATH = vim.env.PATH .. ':/usr/bin'
+
+-- Disable unused providers (no Perl/Ruby/Python/Node plugins in use).
+-- Unused built-in runtime plugins (tar, zip, gzip, tohtml, tutor, netrw)
+-- are disabled in lua/custom/lazy.lua via lazy.nvim's `disabled_plugins`.
+vim.g.loaded_perl_provider = 0
+vim.g.loaded_ruby_provider = 0
+vim.g.loaded_python3_provider = 0
+vim.g.loaded_node_provider = 0
 
 require 'custom.core'
 require 'custom.lazy'
@@ -34,7 +43,7 @@ require 'man_search'
 local highlight_group = vim.api.nvim_create_augroup('YankHighlight', { clear = true })
 vim.api.nvim_create_autocmd('TextYankPost', {
   callback = function()
-    vim.highlight.on_yank()
+    (vim.hl or vim.highlight).on_yank()
   end,
   group = highlight_group,
   pattern = '*',

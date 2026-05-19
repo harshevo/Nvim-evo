@@ -1,5 +1,5 @@
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
-if not vim.loop.fs_stat(lazypath) then
+if not (vim.uv or vim.loop).fs_stat(lazypath) then
 	vim.fn.system {
 		'git',
 		'clone',
@@ -15,15 +15,25 @@ require('lazy').setup({
 	-- NOTE: First, some plugins that don't require any configuration
 
 	{ import = 'custom.plugins' },
-	{import = 'custom.plugins.lsp'},
+	{ import = 'custom.plugins.lsp' },
 
-	-- Git related plugins
-	'tpope/vim-fugitive',
-	'tpope/vim-rhubarb',
+	-- Git related plugins (load only when their commands are used)
+	{ 'tpope/vim-fugitive', cmd = { 'G', 'Git', 'Gvdiffsplit', 'Gdiffsplit', 'Gread', 'Gwrite', 'Ggrep', 'GMove', 'GDelete', 'GBrowse', 'GRemove', 'GRename', 'Glgrep', 'Gedit' } },
+	{ 'tpope/vim-rhubarb', cmd = { 'GBrowse' } },
 
 	-- Detect tabstop and shiftwidth automatically
-	'tpope/vim-sleuth',
-
-	-- NOTE: This is where your plugins related to LSP can be installed.
-	--  The configuration is done below. Search for lspconfig to find it below.
-}, {})
+	{ 'tpope/vim-sleuth', event = { 'BufReadPre', 'BufNewFile' } },
+}, {
+	performance = {
+		rtp = {
+			disabled_plugins = {
+				'gzip',
+				'tarPlugin',
+				'tohtml',
+				'tutor',
+				'zipPlugin',
+				'netrwPlugin',
+			},
+		},
+	},
+})

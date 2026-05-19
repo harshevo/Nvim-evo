@@ -1,6 +1,7 @@
 return {
   {
     'p00f/clangd_extensions.nvim', -- clangd extension, some good stuff
+    ft = { 'c', 'cpp' },
     config = function()
       local icons = require 'custom.config.icons'
 
@@ -74,8 +75,24 @@ return {
     dependencies = {
       'stevearc/overseer.nvim',
     },
-    lazy = false,
-    priority = 1000,
+    cmd = {
+      'CMakeGenerate',
+      'CMakeBuild',
+      'CMakeRun',
+      'CMakeDebug',
+      'CMakeSelectBuildType',
+      'CMakeSelectBuildTarget',
+      'CMakeSelectLaunchTarget',
+      'CMakeOpenExecutor',
+      'CMakeCloseExecutor',
+      'CMakeOpenRunner',
+      'CMakeCloseRunner',
+      'CMakeInstall',
+      'CMakeClean',
+      'CMakeStopRunner',
+      'CMakeStopExecutor',
+    },
+    ft = { 'cmake' },
     config = function()
       require('overseer').setup {
         task_list = {

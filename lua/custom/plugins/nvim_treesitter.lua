@@ -2,6 +2,8 @@ return {
   -- Highlight, edit, and navigate code
   'nvim-treesitter/nvim-treesitter',
   branch = 'master',
+  event = { 'BufReadPost', 'BufNewFile' },
+  cmd = { 'TSInstall', 'TSBufEnable', 'TSBufDisable', 'TSModuleInfo', 'TSUpdate' },
   dependencies = {
     { 'nvim-treesitter/nvim-treesitter-textobjects', branch = 'master' },
   },
@@ -10,9 +12,7 @@ return {
   config = function()
     -- [[ Configure Treesitter ]]
     -- See `:help nvim-treesitter`
-    -- Defer Treesitter setup after first render to improve startup time of 'nvim {filename}'
-    vim.defer_fn(function()
-      require('nvim-treesitter.configs').setup {
+    require('nvim-treesitter.configs').setup {
         -- Add languages to be installed here that you want installed for treesitter
         ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
 
@@ -81,7 +81,6 @@ return {
             },
           },
         },
-      }
-    end, 0)
+    }
   end,
 }

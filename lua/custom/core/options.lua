@@ -27,6 +27,10 @@ vim.opt.background = 'dark'
 
 vim.opt.splitright = true
 vim.opt.splitbelow = true
+
+-- Fallback for `K` when no LSP is attached: open :help instead of :Man
+-- (avoids the "No manual entry" error on macOS for code identifiers).
+vim.opt.keywordprg = ':help'
 --------------------------------------------------------------------------
 
 -- Set highlight on search

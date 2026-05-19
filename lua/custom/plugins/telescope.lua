@@ -2,6 +2,22 @@
 return {
   'nvim-telescope/telescope.nvim',
   branch = '0.1.x',
+  cmd = { 'Telescope', 'LiveGrepGitRoot' },
+  keys = {
+    '<leader>?',
+    '<leader><space>',
+    '<leader>/',
+    '<leader>f/',
+    '<leader>ss',
+    '<leader>gf',
+    '<leader>ff',
+    '<leader>sh',
+    '<leader>fcw',
+    '<leader>fg',
+    '<leader>sG',
+    '<leader>fd',
+    '<leader>sr',
+  },
   dependencies = {
     'nvim-lua/plenary.nvim',
     'nvim-telescope/telescope-dap.nvim',

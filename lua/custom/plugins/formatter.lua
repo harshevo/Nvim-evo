@@ -23,7 +23,7 @@ return {
         cpp = { 'clang-format' },
       },
       format_on_save = {
-        lsb_fallback = true,
+        lsp_fallback = true,
         async = false,
         timeout_ms = 1000,
       },
