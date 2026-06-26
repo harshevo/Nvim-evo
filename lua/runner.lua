@@ -8,7 +8,7 @@ end
 
 local function build_cmd_for_current_file()
   local file_abs = vim.fn.expand '%:p'
-  local ext = vim.fn.expand '%:e'
+  local ext = vim.fn.expand('%:e'):lower()
   local base = vim.fn.expand '%:t:r'
   local out_bin = '/tmp/' .. base .. '_run'
   local obj_file = '/tmp/' .. base .. '.o'
