@@ -126,6 +126,23 @@ return {
           },
         },
       }
+      local cmake_tools_dir = vim.fn.stdpath 'data' .. '/CMakeTools'
+      local cmake_kits_path = cmake_tools_dir .. '/cmake-tools-kits.json'
+      vim.fn.mkdir(cmake_tools_dir, 'p')
+      if vim.fn.filereadable(cmake_kits_path) == 0 or table.concat(vim.fn.readfile(cmake_kits_path), '') == '[]' then
+        vim.fn.writefile({
+          '[',
+          '  {',
+          '    "name": "Apple Clang",',
+          '    "compilers": {',
+          '      "C": "/usr/bin/clang",',
+          '      "CXX": "/usr/bin/clang++"',
+          '    }',
+          '  }',
+          ']',
+        }, cmake_kits_path)
+      end
+
       require('cmake-tools').setup {
         cmake_command = 'cmake', -- this is used to specify cmake command path
         ctest_command = 'ctest',
@@ -135,7 +152,7 @@ return {
         cmake_build_directory = 'out/${variant:buildType}', -- this is used to specify generate directory for cmake
         cmake_soft_link_compile_commands = true, -- this will automatically make a soft link from compile commands file to project root dir
         cmake_compile_commands_from_lsp = false, -- this will automatically set compile commands file location using lsp, to use it, please set `cmake_soft_link_compile_commands` to false
-        cmake_kits_path = '/home/harshevo/.local/share/CMakeTools/cmake-tools-kits.json',
+        cmake_kits_path = cmake_kits_path,
         cmake_variants_message = {
           short = { show = true }, -- whether to show short message
           long = { show = true, max_length = 40 }, -- whether to show long message
