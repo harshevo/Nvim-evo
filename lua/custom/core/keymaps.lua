@@ -121,7 +121,10 @@ keymap('n', '<leader>ml', '<cmd>CMakeSelectLaunchTarget<CR>', { desc = 'Select L
 keymap('n', '<leader>meo', '<cmd>CMakeOpenExecutor<CR>', { desc = 'Open CMake Executor' })
 keymap('n', '<leader>mec', '<cmd>CMakeCloseExecutor<CR>', { desc = 'Close CMake Executor' })
 keymap('n', '<leader>mor', '<cmd>CMakeOpenRunner<CR>', { desc = 'Open CMake Runner' })
-keymap('n', '<leader>mcr', '<cmd>CMakeCloseRunner<CR>', { desc = 'Close CMake Runner' })
+keymap('n', '<leader>mcr', function()
+  vim.cmd [[CMakeStopRunner]]
+  vim.cmd [[CMakeCloseRunner]]
+end, { desc = 'Close CMake Runner' })
 keymap('n', '<leader>mi', '<cmd>CMakeInstall<CR>', { desc = 'Intall CMake target' })
 keymap('n', '<leader>mc', '<cmd>CMakeClean<CR>', { desc = 'Clean CMake target' })
 keymap('n', '<leader>ms', function()

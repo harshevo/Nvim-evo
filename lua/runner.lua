@@ -672,7 +672,35 @@ local function run_built_target()
 end
 
 -- ---------- global state ----------
-_G.RunNowState = _G.RunNowState or { buf = nil, chan = nil, prev_win = nil }
+_G.RunNowState = _G.RunNowState or { buf = nil, chan = nil, prev_win = nil, stopping = false }
+
+local function stop_terminal_job(chan)
+  if not chan then
+    return
+  end
+
+  local ok, status = pcall(vim.fn.jobwait, { chan }, 0)
+  if not ok or status[1] ~= -1 then
+    return
+  end
+
+  pcall(vim.api.nvim_chan_send, chan, '\003')
+  ok, status = pcall(vim.fn.jobwait, { chan }, 150)
+  if ok and status[1] ~= -1 then
+    return
+  end
+
+  pcall(vim.fn.jobstop, chan)
+  ok, status = pcall(vim.fn.jobwait, { chan }, 500)
+  if ok and status[1] ~= -1 then
+    return
+  end
+
+  local pid = vim.fn.jobpid(chan)
+  if pid and pid > 0 then
+    pcall(vim.system, { 'kill', '-TERM', '-' .. pid })
+  end
+end
 
 -- ---------- close terminal split (buffer-local mapping will call this) ----------
 local function close_terminal_split()
@@ -681,10 +709,13 @@ local function close_terminal_split()
     return
   end
 
+  local bufnr = s.buf
+  stop_terminal_job(s.chan)
+
   local wins = vim.fn.win_findbuf(s.buf)
   if #wins == 0 then
     -- terminal not visible; just ensure buffer is wiped and state cleared
-    pcall(vim.cmd, 'bwipeout! ' .. s.buf)
+    pcall(vim.cmd, 'bwipeout! ' .. bufnr)
     s.buf, s.chan, s.prev_win = nil, nil, nil
     return
   end
@@ -705,7 +736,7 @@ local function close_terminal_split()
   local prev = s.prev_win
   -- make terminal window current, then wipe the buffer (this closes the window)
   pcall(vim.api.nvim_set_current_win, winid)
-  pcall(vim.cmd, 'bwipeout! ' .. s.buf)
+  pcall(vim.cmd, 'bwipeout! ' .. bufnr)
 
   -- restore focus: prefer prev_win if still valid, else try to move up
   if prev and vim.api.nvim_win_is_valid(prev) then
@@ -736,7 +767,7 @@ local function create_terminal()
   pcall(vim.api.nvim_buf_set_name, bufnr, 'RunNow Terminal')
   pcall(vim.api.nvim_buf_set_option, bufnr, 'buflisted', false)
   pcall(vim.api.nvim_buf_set_option, bufnr, 'swapfile', false)
-  pcall(vim.api.nvim_buf_set_option, bufnr, 'bufhidden', 'hide') -- hidden when not displayed
+  pcall(vim.api.nvim_buf_set_option, bufnr, 'bufhidden', 'wipe')
 
   -- one augroup per buffer to avoid duplicate autocmds
   local aug = vim.api.nvim_create_augroup('RunNow_' .. bufnr, { clear = true })
@@ -747,6 +778,11 @@ local function create_terminal()
     buffer = bufnr,
     callback = function()
       if _G.RunNowState and _G.RunNowState.buf == bufnr then
+        if not _G.RunNowState.stopping then
+          _G.RunNowState.stopping = true
+          stop_terminal_job(_G.RunNowState.chan)
+          _G.RunNowState.stopping = false
+        end
         _G.RunNowState.buf, _G.RunNowState.chan, _G.RunNowState.prev_win = nil, nil, nil
       end
     end,
@@ -767,6 +803,7 @@ local function create_terminal()
   _G.RunNowState.buf = bufnr
   _G.RunNowState.chan = chan
   _G.RunNowState.prev_win = prev_win
+  _G.RunNowState.stopping = false
   return bufnr, chan
 end
 

@@ -94,6 +94,176 @@ return {
     },
     ft = { 'cmake' },
     config = function()
+      local function setup_cmake_runner_kill_on_hide()
+        local ok, cmake_toggleterm = pcall(require, 'cmake-tools.toggleterm')
+        if not ok or cmake_toggleterm.__kill_on_hide_patched then
+          return
+        end
+
+        cmake_toggleterm.__kill_on_hide_patched = true
+
+        local group = vim.api.nvim_create_augroup('CMakeRunnerKillOnHide', { clear = true })
+
+        local function process_exists(pid)
+          if not pid or pid <= 0 then
+            return false
+          end
+
+          pcall(vim.fn.system, { 'kill', '-0', tostring(pid) })
+          return vim.v.shell_error == 0
+        end
+
+        local function process_tree(pid)
+          local ok_ps, lines = pcall(vim.fn.systemlist, { 'ps', '-axo', 'pid=,ppid=' })
+          if not ok_ps then
+            return { pid }
+          end
+
+          local children = {}
+          for _, line in ipairs(lines) do
+            local child, parent = line:match '^%s*(%d+)%s+(%d+)%s*$'
+            child, parent = tonumber(child), tonumber(parent)
+            if child and parent then
+              children[parent] = children[parent] or {}
+              table.insert(children[parent], child)
+            end
+          end
+
+          local pids = {}
+          local function visit(parent)
+            for _, child in ipairs(children[parent] or {}) do
+              visit(child)
+              table.insert(pids, child)
+            end
+          end
+
+          visit(pid)
+          table.insert(pids, pid)
+          return pids
+        end
+
+        local function kill_processes(pids, signal)
+          for _, pid in ipairs(pids) do
+            if process_exists(pid) then
+              pcall(vim.fn.system, { 'kill', signal, tostring(pid) })
+            end
+          end
+        end
+
+        local function job_running(chan)
+          if not chan then
+            return false
+          end
+
+          local ok_wait, status = pcall(vim.fn.jobwait, { chan }, 0)
+          return ok_wait and status[1] == -1
+        end
+
+        local function wipe_runner_buffer(bufnr)
+          vim.schedule(function()
+            if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+              pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+            end
+          end)
+        end
+
+        local function terminate_runner(bufnr)
+          if cmake_toggleterm.__terminating then
+            return
+          end
+
+          cmake_toggleterm.__terminating = true
+
+          local chan = cmake_toggleterm.chan_id or (cmake_toggleterm.term and cmake_toggleterm.term.job_id)
+          local pid = chan and vim.fn.jobpid(chan) or nil
+          local pids = pid and pid > 0 and process_tree(pid) or {}
+
+          if chan and job_running(chan) then
+            pcall(vim.api.nvim_chan_send, chan, '\003')
+            pcall(vim.fn.jobwait, { chan }, 100)
+          end
+
+          if pid and pid > 0 then
+            pcall(vim.fn.system, { 'kill', '-TERM', '-' .. pid })
+          end
+          kill_processes(pids, '-TERM')
+
+          if chan and job_running(chan) then
+            pcall(vim.fn.jobstop, chan)
+            pcall(vim.fn.jobwait, { chan }, 200)
+          end
+
+          if pid and pid > 0 then
+            pcall(vim.fn.system, { 'kill', '-KILL', '-' .. pid })
+          end
+          kill_processes(pids, '-KILL')
+
+          cmake_toggleterm.chan_id = nil
+          cmake_toggleterm.cmd = nil
+          wipe_runner_buffer(bufnr or (cmake_toggleterm.term and cmake_toggleterm.term.bufnr))
+
+          cmake_toggleterm.__terminating = false
+        end
+
+        local function install_hide_autocmds()
+          local term = cmake_toggleterm.term
+          if not (term and term.bufnr and vim.api.nvim_buf_is_valid(term.bufnr)) then
+            return
+          end
+
+          local bufnr = term.bufnr
+          local winid = term.window
+          vim.api.nvim_clear_autocmds { group = group }
+
+          local function cleanup()
+            if cmake_toggleterm.term == term then
+              terminate_runner(bufnr)
+            end
+          end
+
+          vim.api.nvim_create_autocmd('WinLeave', {
+            group = group,
+            buffer = bufnr,
+            once = true,
+            callback = cleanup,
+          })
+
+          if winid and vim.api.nvim_win_is_valid(winid) then
+            vim.api.nvim_create_autocmd('WinClosed', {
+              group = group,
+              pattern = tostring(winid),
+              once = true,
+              callback = cleanup,
+            })
+          end
+
+          vim.api.nvim_create_autocmd({ 'BufHidden', 'BufWipeout' }, {
+            group = group,
+            buffer = bufnr,
+            once = true,
+            callback = cleanup,
+          })
+        end
+
+        local original_run = cmake_toggleterm.run
+        cmake_toggleterm.run = function(...)
+          original_run(...)
+          vim.schedule(install_hide_autocmds)
+        end
+
+        local original_close = cmake_toggleterm.close
+        cmake_toggleterm.close = function(opts)
+          terminate_runner(cmake_toggleterm.term and cmake_toggleterm.term.bufnr)
+          pcall(original_close, opts)
+        end
+
+        cmake_toggleterm.stop = function()
+          terminate_runner(cmake_toggleterm.term and cmake_toggleterm.term.bufnr)
+        end
+      end
+
+      setup_cmake_runner_kill_on_hide()
+
       require('overseer').setup {
         task_list = {
           direction = 'right',
@@ -222,7 +392,7 @@ return {
             },
             toggleterm = {
               direction = 'float', -- 'vertical' | 'horizontal' | 'tab' | 'float'
-              close_on_exit = false, -- whether close the terminal when exit
+              close_on_exit = true, -- whether close the terminal when exit
               auto_scroll = true, -- whether auto scroll to the bottom
             },
             overseer = {
