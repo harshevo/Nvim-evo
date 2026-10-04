@@ -1,0 +1,113 @@
+*cpp-workflow.txt*     C/C++ editing, building, documentation and debugging
+
+C/C++ WORKFLOW                                              *cpp-workflow*
+
+Leader is Space. Use :CppHelp to open this guide.
+
+FORMAT
+  Saving formats C/C++ using clang-format.yaml in the Neovim configuration.
+  Functions, classes, namespaces and control-flow braces use new lines:
+>
+  int add(int left, int right)
+  {
+    return left + right;
+  }
+<
+  Empty functions also use separate brace lines. This explicit style takes
+  precedence over a project's .clang-format file. Indentation is two spaces.
+  Space cf      Format C/C++ asynchronously
+  Space mp      Format file (or selected range in visual mode)
+  :KickstartFormatToggle  Enable/disable formatting on save
+
+CHECK AND RUN
+  Space b       Open/close error split immediately; check in background
+  Space B       Save and perform full project build
+  Enter / o     Jump to the selected error from the error split
+  j / k         Select next/previous error in the split
+  q / Esc       Close the error split
+  Space cn/cp   Next/previous compiler error
+  ]d / [d       Next/previous language-server diagnostic
+  Space q       Detailed diagnostic at the cursor
+  F5            Save, compile and run this file
+  Space r       Save, rebuild and run the project
+  :RunStop      Stop runner build/program and close output
+
+  Checks save edited source buffers, including headers. Standalone checks use
+  -fsyntax-only (no link step); CMake/Make projects build incrementally. Results
+  stay hidden if you close the error split while a check is running. Reopening
+  unchanged results within two seconds does not start another check.
+
+  Standalone compilation uses C17/C++20, -O0 -g, -Wall and -Wextra. Failed saves
+  or builds never launch an old executable. F5 runs one translation unit; use
+  Space r for a project with multiple source files. Use :RunNow arguments for
+  single-file command-line arguments. Terminal input works normally; Esc then
+  H closes the runner output. F5 from output saves/rebuilds the source again.
+
+COMPLETION AND NAVIGATION
+  K             Signature, types and available documentation; K again focuses
+  gK            Signature help at a call
+  Ctrl-k        Signature help while typing
+  Ctrl-Space    Request completion
+  Ctrl-n/p      Select completion
+  Enter         Accept completion
+  Tab/Shift-Tab Navigate completion/snippet fields
+  gd / gD       Definition / declaration
+  gr / gi       References / implementation
+  gT            Type definition
+  Ctrl-o        Return after navigation
+  Space cr      Rename symbol across the project
+  Space ca      Code action / suggested fix
+  Space ch      Switch source and header
+  Space cs      Search symbols in this file
+  Space ci      Toggle inline parameter/type hints
+
+  clangd uses the project's compilation database, .clangd or compile_flags.txt.
+  Databases in build/, out/Debug, out/Release and common CMake directories are
+  detected. Run :CppRestart after creating or switching build directories.
+  Projects retain their own language standards, definitions and include paths.
+  Standalone files receive matching C17/C++20 flags. clangd may take a moment
+  to index large projects before all cross-file results become available.
+
+DOCUMENTATION
+  Space cm      C/POSIX manual for symbol under cursor (section 3, then 2)
+  :CppMan name  Open a named system manual
+  Space fm      Search installed manual pages; fetched asynchronously and cached
+  :ManSearch!   Refresh the manual index
+  Space cR      Search cppreference in the browser (requires internet)
+  :CppReference name  Search a named C/C++ API on cppreference
+
+  K reads signatures and comments from your actual headers through clangd.
+  System manuals are available offline. Third-party documentation depends on
+  installed headers/manuals; cppreference covers the standard C/C++ library.
+
+DEBUG
+  F6 / Space dc Save, rebuild and debug; F6 continues an active session
+  F9            Toggle source breakpoint
+  F10           Step over
+  F11           Step into
+  Shift-F11     Step out
+  Space ds      Inspect local variables/scopes
+  Space df      Inspect stack frames
+  Space db      List breakpoints
+  Space dt      Conditional breakpoint
+  Space dn      Run to cursor
+  Alt-k         Inspect expression under cursor
+  Space dr      Toggle debugger REPL (expressions and debugger commands)
+  Space dq      Terminate debug session
+  :CppDebug     Save, rebuild and launch LLDB
+
+  nvim-dap and LLDB load only when requested. Standalone builds include debug
+  symbols; fresh CMake build directories default to Debug. Existing project
+  build types are preserved: choose Debug (Space mt) and regenerate (Space mg)
+  if breakpoints are unavailable. CMake targets are selected automatically or
+  through a picker. Make projects prompt for the executable after building.
+
+PERFORMANCE
+  Diagnostics wait until you leave insert mode; inline text shows errors only,
+  with warnings also marked in the gutter and error list. Indexing is limited
+  to two clangd workers. Completion, formatting, debugger and manual search
+  load on demand. Large files (1 MiB or 20,000 lines) skip expensive features.
+
+  Space x closes the current buffer. Space c is reserved for C/C++ commands.
+
+vim:tw=78:ts=8:ft=help:norl:

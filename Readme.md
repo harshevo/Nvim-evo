@@ -35,7 +35,7 @@ Useful language/build tools:
 - OCaml LSP: `opam` and `ocaml-lsp-server`, only needed if you use OCaml.
 - Docker LSP: Docker tooling, only needed if you edit Dockerfiles often.
 
-Mason installs most Neovim language tools automatically on first start, including:
+Run `:MasonToolsInstall` to install the configured language tools. Installation checks are disabled during startup so opening a file stays fast. Configured tools include:
 
 - LSPs: `bashls`, `lua_ls`, `jsonls`, `yamlls`, `clangd`, `vtsls`, `pyright`, `dockerls`, `tailwindcss-language-server`.
 - Formatters/debug tools: `stylua`, `prettier`, `goimports`, `isort`, `black`, `clang-format`, `delve`.
@@ -128,8 +128,9 @@ If those Windows paths do not work, use:
 1. Open `nvim`.
 2. lazy.nvim bootstraps itself and installs plugins.
 3. Run `:Lazy sync` if a plugin did not install cleanly.
-4. Run `:Mason` or `:MasonToolsInstall` to confirm LSPs and formatters are installed.
-5. Run `:checkhealth` to catch missing system tools.
+4. Run `:MasonToolsInstall` to install LSPs and formatters.
+5. Run `:TSInstall c cpp go lua python rust tsx javascript typescript vimdoc vim bash` for syntax parsers.
+6. Run `:checkhealth` to catch missing system tools.
 
 ## Important Paths
 
@@ -155,9 +156,10 @@ Leader is `<Space>`.
 - `<leader>sG`: live grep from the git root.
 - `<leader>fd`: Telescope diagnostics.
 - `<leader>mp`: format current file or visual selection.
-- `<leader>b`: build/check current project into quickfix.
-- `<leader>r`: run built target or project command.
-- `<F5>`: run the current file.
+- `<leader>b`: instantly toggle the error split; save/check in the background.
+- `<leader>B`: full project build; Enter jumps to an error, q closes the split.
+- `<leader>r`: save modified buffers, rebuild, then run the project.
+- `<F5>`: save, compile and run the current file.
 - `<leader>co`: open quickfix.
 - `<leader>cn` / `<leader>cp`: next/previous quickfix item.
 - `<S-l>` / `<S-h>`: next/previous buffer.
@@ -166,7 +168,7 @@ CMake keymaps:
 
 - `<leader>mg`: generate.
 - `<leader>mb`: build.
-- `<leader>mr`: run.
+- `<leader>mr`: save, rebuild and run.
 - `<leader>md`: debug.
 - `<leader>mt`: select build type.
 - `<leader>mst`: select build target.
@@ -183,10 +185,60 @@ The custom runner supports:
 - CMake projects with `cmake`.
 - Make projects with `make`.
 - Go projects with `go test` / `go run`.
-- JS/TS projects with `npm`, `node`, `npx tsc`, and `npx tsx`.
-- Assembly files with `nasm` and `ld`.
+- JS/TS projects with `npm`, `node`, `npx tsc`, and a locally installed `tsx` (no automatic package downloads when running).
+- Linux ELF32 assembly files with `nasm` and `ld`. On macOS, use a project Makefile with the appropriate assembler/linker.
 
-Project run commands can be saved in `.nvim-run.json`.
+`F5` runs the current file; `<Space>r` rebuilds and runs the project. Builds and runs save all named modified source buffers, including edited headers. A failed save or build aborts the run. Single-file C/C++ uses C17/C++20 with `-O0 -g` for quick builds and debugging; project builds retain their own compiler flags.
+
+Each source path has its own executable under Neovim's cache directory. Each run replaces the previous terminal job and output, so waiting programs cannot consume the next run command. `Esc` leaves terminal input mode; `H` (or `K`) in terminal normal mode closes output. Capital `H` remains available as program input. `:RunStop` stops the active runner build and closes output. `:RunNow arg1 "arg with spaces"` passes optional shell arguments without an input prompt. File runs use the source directory; project runs use the detected project root.
+
+Make-based builds track editor saves so changes within the same second still trigger rebuilding and relinking affected targets. CMake projects build incrementally and read CMake's file API to find executable targets. A single executable launches automatically; multiple executables prompt for a selection, remembered for the session. Set `cmake_target` in `.nvim-run.json` for a persistent target choice. Make projects need a `run` target or a custom command.
+
+Project commands can be saved in `.nvim-run.json`:
+
+```json
+{
+  "cmake_target": "app",
+  "run": {
+    "cpp": "./build/app",
+    "python": "python3 -m my_package",
+    "javascript": "npm run dev"
+  }
+}
+```
+
+There is one format-on-save handler, with a 500 ms budget. Use `:KickstartFormatToggle` to toggle it or `<Space>mp` to format manually. Files at least 1 MiB or 20,000 lines skip Treesitter, LSP, completion and automatic formatting. Treesitter highlighting starts after the first screen draw. JSON/YAML schemas and formatting tools load when used.
+
+Runner regression checks:
+
+```sh
+nvim --headless -u NONE -l tests/runner.lua
+nvim --headless '+lua dofile("tests/runner.lua")'
+nvim --headless '+lua dofile("tests/cmake.lua")'
+```
+
+## C/C++ Development
+
+`:CppHelp` opens the complete local shortcut guide. Saving C/C++ applies Allman braces (including empty functions, control flow and classes), using `clang-format.yaml` in this configuration, with two-space indentation. This style overrides project `.clang-format` files. `<Space>cf` formats asynchronously.
+
+- `K`: function signature and header documentation; `gK` / insert `Ctrl-k`: call signature help.
+- `gd`, `gD`, `gr`, `gi`, `gT`: definition, declaration, references, implementation and type.
+- `<Space>cr`, `<Space>ca`: rename and code actions; `<Space>ch`: source/header switch.
+- `<Space>cs`: file symbols; `<Space>ci`: parameter/type hints.
+- `<Space>cm`: installed C/POSIX manual; `<Space>fm`: cached asynchronous manual search.
+- `<Space>cR`: online cppreference search. Third-party docs depend on installed headers/manuals.
+- `F6`: build/debug or continue; `F9`: breakpoint; `F10`/`F11`/`Shift-F11`: step over/into/out.
+- `<Space>ds`, `<Space>df`, `<Space>dr`, `<Space>dq`: debug variables, stack, REPL and stop.
+- `<Space>x`: close buffer (the `<Space>c` prefix is reserved for C/C++ commands).
+
+Standalone checks avoid linking, and clangd uses C17/C++20 for standalone files. Project flags come from the compilation database or project configuration. Common CMake database locations are detected; use `:CppRestart` after creating or switching build directories. New CMake builds default to Debug; existing build types are preserved.
+
+Additional integration checks (run from this directory):
+
+```sh
+nvim --headless '+lua dofile("tests/cpp.lua")'
+nvim --headless '+lua dofile("tests/debug.lua")'
+```
 
 ## Notes
 

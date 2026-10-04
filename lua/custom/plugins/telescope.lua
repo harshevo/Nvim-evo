@@ -40,6 +40,7 @@ return {
     -- See `:help telescope` and `:help telescope.setup()`
     require('telescope').setup {
       defaults = {
+        file_ignore_patterns = { 'node_modules/', '%.git/', '__pycache__/', 'build/', 'out/', 'dist/', '%.venv/' },
         mappings = {
           i = {
             ['<C-u>'] = false,
@@ -68,7 +69,7 @@ return {
       end
 
       -- Find the Git root directory from the current file's path
-      local git_root = vim.fn.systemlist('git -C ' .. vim.fn.escape(current_dir, ' ') .. ' rev-parse --show-toplevel')[1]
+      local git_root = vim.fn.systemlist({ 'git', '-C', current_dir, 'rev-parse', '--show-toplevel' })[1]
       if vim.v.shell_error ~= 0 then
         print 'Not a git repository. Searching on current working directory'
         return cwd

@@ -1,16 +1,6 @@
 -- Enable bytecode cache (Neovim 0.9+). Must run before any require().
 vim.loader.enable()
 
-do
-  local orig_notify = vim.notify
-  vim.notify = function(msg, level, opts)
-    if level ~= nil and level < vim.log.levels.ERROR then
-      return
-    end
-    return orig_notify(msg, level, opts)
-  end
-end
-
 vim.env.PATH = vim.env.PATH .. ':/usr/bin'
 
 -- Disable unused providers (no Perl/Ruby/Python/Node plugins in use).
@@ -24,7 +14,7 @@ vim.g.loaded_node_provider = 0
 require 'custom.core'
 require 'custom.lazy'
 require('helpsearch').setup {
-  help_dir = '~/dev/help',
+  root_dir = '~/dev/help',
 }
 require 'man_search'
 

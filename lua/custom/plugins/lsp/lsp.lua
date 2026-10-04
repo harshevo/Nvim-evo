@@ -2,21 +2,16 @@ return {
   {
     'neovim/nvim-lspconfig',
     event = { 'BufReadPre', 'BufNewFile' },
-    cmd = { 'LspInfo', 'LspInstall', 'LspUninstall', 'Mason' },
+    cmd = { 'LspInfo', 'Mason', 'MasonToolsInstall', 'MasonToolsUpdate', 'MasonToolsClean' },
     dependencies = {
-      'folke/neodev.nvim',
       'williamboman/mason.nvim',
       'williamboman/mason-lspconfig.nvim',
       'WhoIsSethDaniel/mason-tool-installer.nvim',
       { 'j-hui/fidget.nvim', opts = {} },
-      'stevearc/conform.nvim',
       'b0o/SchemaStore.nvim',
     },
 
     config = function()
-      -- === neodev: Lua runtime/LSP tweaks ===
-      require('neodev').setup {}
-
       -- === Capabilities ===
       local capabilities = nil
       if pcall(require, 'cmp_nvim_lsp') then
@@ -46,7 +41,7 @@ return {
             Lua = {
               runtime = { version = 'LuaJIT' },
               diagnostics = { globals = { 'vim' } },
-              workspace = { checkThirdParty = false },
+              workspace = { checkThirdParty = false, library = { vim.env.VIMRUNTIME } },
               telemetry = { enable = false },
             },
           },
@@ -55,7 +50,7 @@ return {
         jsonls = {
           settings = {
             json = {
-              schemas = require('schemastore').json.schemas(),
+              schemas = {},
               validate = { enable = true },
             },
           },
@@ -66,7 +61,7 @@ return {
           settings = {
             yaml = {
               schemaStore = { enable = false, url = '' },
-              schemas = require('schemastore').yaml.schemas(),
+              schemas = {},
             },
           },
         },
@@ -83,13 +78,24 @@ return {
           cmd = {
             'clangd',
             '--function-arg-placeholders=0',
-            '--fallback-style=Google',
+            '--fallback-style=LLVM',
+            '--header-insertion=iwyu',
+            '--completion-style=detailed',
+            '--background-index',
+            '-j=2',
+            '--pch-storage=memory',
+            '--log=error',
           },
           init_options = {
             clangdFileStatus = true,
             usePlaceholders = false,
+            fallbackFlags = { '-Wall', '-Wextra' },
           },
-          filetypes = { 'c', 'cpp' },
+          filetypes = { 'c', 'cpp', 'objc', 'objcpp', 'cuda' },
+          root_markers = { { '.clangd', 'compile_commands.json', 'compile_flags.txt', 'CMakeLists.txt', 'Makefile', 'makefile' }, '.git' },
+          before_init = function(params, config)
+            require('custom.cpp.language').configure(params, config)
+          end,
         },
 
         vtsls = true,
@@ -125,6 +131,7 @@ return {
 
       require('mason-tool-installer').setup {
         ensure_installed = ensure_installed,
+        run_on_start = false,
       }
 
       -- === Register & enable servers (pure Neovim 0.11 API) ===
@@ -141,6 +148,17 @@ return {
           goto continue
         end
 
+        cfg_table.flags = vim.tbl_extend('force', cfg_table.flags or {}, { debounce_text_changes = 200 })
+        if name == 'jsonls' or name == 'yamlls' then
+          cfg_table.before_init = function(_, config)
+            if name == 'jsonls' then
+              config.settings.json.schemas = require('schemastore').json.schemas()
+            else
+              config.settings.yaml.schemas = require('schemastore').yaml.schemas()
+            end
+          end
+        end
+
         local user_on_init = cfg_table.on_init
         cfg_table.on_init = function(client, init_result)
           normalize_server_capabilities(client)
@@ -149,8 +167,22 @@ return {
           end
         end
 
-        pcall(function() vim.lsp.config(name, cfg_table) end)
-        pcall(function() vim.lsp.enable(name) end)
+        vim.lsp.config(name, cfg_table)
+        local resolved = vim.lsp.config[name]
+        local root_dir = resolved.root_dir
+        local root_markers = resolved.root_markers
+        vim.lsp.config(name, {
+          root_dir = function(bufnr, on_dir)
+            if vim.b[bufnr].large_file then
+              return
+            end
+            if type(root_dir) == 'function' then
+              return root_dir(bufnr, on_dir)
+            end
+            on_dir(root_dir or (root_markers and vim.fs.root(bufnr, root_markers)) or vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ':h'))
+          end,
+        })
+        vim.lsp.enable(name)
 
         ::continue::
       end
@@ -181,15 +213,32 @@ return {
           vim.opt_local.omnifunc = 'v:lua.vim.lsp.omnifunc'
           -- Defer the telescope require until the keymap is actually pressed,
           -- so opening a code file doesn't drag telescope into startup.
-          vim.keymap.set('n', 'gd', function() require('telescope.builtin').lsp_definitions() end, { buffer = bufnr })
-          vim.keymap.set('n', 'gr', function() require('telescope.builtin').lsp_references() end, { buffer = bufnr })
+          vim.keymap.set('n', 'gd', function()
+            require('telescope.builtin').lsp_definitions()
+          end, { buffer = bufnr })
+          vim.keymap.set('n', 'gr', function()
+            require('telescope.builtin').lsp_references()
+          end, { buffer = bufnr })
           vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, { buffer = bufnr })
           vim.keymap.set('n', 'gT', vim.lsp.buf.type_definition, { buffer = bufnr })
-          vim.keymap.set('n', 'K', function() vim.lsp.buf.hover { border = 'single', max_width = 100 } end, { buffer = bufnr, desc = 'LSP hover (press K again to focus)' })
-          vim.keymap.set('n', 'gK', function() vim.lsp.buf.signature_help { border = 'single' } end, { buffer = bufnr, desc = 'LSP signature help' })
-          vim.keymap.set('i', '<C-k>', function() vim.lsp.buf.signature_help { border = 'single' } end, { buffer = bufnr })
+          vim.keymap.set('n', 'K', function()
+            if client.name == 'clangd' then
+              require('custom.cpp.docs').hover()
+            else
+              vim.lsp.buf.hover { border = 'single', max_width = 100 }
+            end
+          end, { buffer = bufnr, desc = 'LSP hover (press K again to focus)' })
+          vim.keymap.set('n', 'gK', function()
+            vim.lsp.buf.signature_help { border = 'single' }
+          end, { buffer = bufnr, desc = 'LSP signature help' })
+          vim.keymap.set('i', '<C-k>', function()
+            vim.lsp.buf.signature_help { border = 'single' }
+          end, { buffer = bufnr })
           vim.keymap.set('n', '<space>cr', vim.lsp.buf.rename, { buffer = bufnr })
           vim.keymap.set('n', '<space>ca', vim.lsp.buf.code_action, { buffer = bufnr })
+          if client.name == 'clangd' then
+            require('custom.cpp.language').attach(bufnr)
+          end
 
           if disable_semantic_tokens[vim.bo[bufnr].filetype] then
             client.server_capabilities.semanticTokensProvider = nil
@@ -206,21 +255,12 @@ return {
       -- === Diagnostics & UI borders ===
       vim.diagnostic.config {
         float = { border = 'single' },
-        signs = { severity = { min = vim.diagnostic.severity.ERROR } },
+        update_in_insert = false,
+        severity_sort = true,
+        signs = { severity = { min = vim.diagnostic.severity.WARN } },
         virtual_text = { severity = { min = vim.diagnostic.severity.ERROR } },
-        underline = { severity = { min = vim.diagnostic.severity.ERROR } },
+        underline = { severity = { min = vim.diagnostic.severity.WARN } },
       }
-
-      -- === Autoformat on save ===
-      vim.api.nvim_create_autocmd('BufWritePre', {
-        callback = function(args)
-          require('conform').format {
-            bufnr = args.buf,
-            lsp_fallback = true,
-            quiet = true,
-          }
-        end,
-      })
     end,
   },
 }

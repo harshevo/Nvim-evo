@@ -9,7 +9,7 @@ vim.keymap.set({ 'n', 'v' }, '<leader>d', [["_d]])
 
 vim.keymap.set('i', 'jk', '<Esc>', { silent = true })
 vim.keymap.set('n', '<leader>w', ':w<CR>')
-vim.keymap.set('n', '<leader>c', ':bdelete<CR>')
+vim.keymap.set('n', '<leader>x', ':bdelete<CR>', { desc = 'Close buffer' })
 
 vim.keymap.set('n', '<leader>e', ':NvimTreeToggle<CR>', {
   noremap = true,
@@ -45,24 +45,15 @@ vim.keymap.set('n', 'j', "v:count == 0 ? 'gj' : 'j'", { expr = true, silent = tr
 
 -- Diagnostic keymaps
 local function jump_error(count)
-  if vim.diagnostic.jump then
-    vim.diagnostic.jump {
-      count = count,
-      severity = vim.diagnostic.severity.ERROR,
-      float = true,
-    }
-    return
-  end
-
-  local jump = count > 0 and vim.diagnostic.goto_next or vim.diagnostic.goto_prev
-  jump {
-    severity = vim.diagnostic.severity.ERROR,
-    float = true,
-  }
+  vim.diagnostic.jump { count = count, severity = vim.diagnostic.severity.ERROR, float = true }
 end
 
-vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous diagnostic message' })
-vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next diagnostic message' })
+vim.keymap.set('n', '[d', function()
+  vim.diagnostic.jump { count = -1, float = true }
+end, { desc = 'Go to previous diagnostic message' })
+vim.keymap.set('n', ']d', function()
+  vim.diagnostic.jump { count = 1, float = true }
+end, { desc = 'Go to next diagnostic message' })
 vim.keymap.set('n', 'gf', function()
   jump_error(1)
 end, { desc = 'Go to next error' })
@@ -105,15 +96,15 @@ end, { silent = true, desc = 'continue' })
 keymap({ 'n', 't' }, '<A-k>', function()
   require('dap.ui.widgets').hover()
 end, { silent = true, desc = 'caculate expr' })
-keymap('n', '<F5>', function()
+keymap('n', '<F9>', function()
   require('dap').toggle_breakpoint()
-end, { silent = true, desc = 'toggle breakpoint' })
+end, { silent = true, desc = 'Toggle breakpoint' })
 
 -- Cmake
 
 keymap('n', '<leader>mg', '<cmd>CMakeGenerate<CR>', { desc = 'Generate' })
 keymap('n', '<leader>mb', '<cmd>CMakeBuild<CR>', { desc = 'Build' })
-keymap('n', '<leader>mr', '<cmd>CMakeRun<CR>', { desc = 'Run' })
+keymap('n', '<leader>mr', '<cmd>RunBuild<CR>', { desc = 'Save, rebuild and run' })
 keymap('n', '<leader>md', '<cmd>CMakeDebug<CR>', { desc = 'Debug' })
 keymap('n', '<leader>mt', '<cmd>CMakeSelectBuildType<CR>', { desc = 'Select Build Type' })
 keymap('n', '<leader>mst', '<cmd>CMakeSelectBuildTarget<CR>', { desc = 'Select Build Target' })
@@ -155,15 +146,19 @@ keymap('n', '<leader>dq', "<cmd>lua require'dap'.terminate()<CR>", { desc = 'Ter
 --[[ .b or .back         Same as |dap.step_back| ]]
 --[[ .rc or .reverse-continue   Same as |dap.reverse_continue| ]]
 keymap('n', '<leader>dr', "<cmd>lua require'dap'.repl.toggle()<CR>", { desc = 'Toggle Repl' })
-keymap('n', '<leader>df', '<cmd>Telescope dap frames<CR>', { desc = 'Stack frames' })
-keymap('n', '<leader>db', '<cmd>Telescope dap list_breakpoints<CR>', { desc = 'All breakpoints' })
+keymap('n', '<leader>df', function()
+  local w = require 'dap.ui.widgets'
+  w.centered_float(w.frames)
+end, { desc = 'Stack frames' })
+keymap('n', '<leader>db', function()
+  require('dap').list_breakpoints()
+  vim.cmd 'copen'
+end, { desc = 'All breakpoints' })
 keymap('n', '<leader>ds', "<cmd>lua require'dap.ui.widgets'.centered_float(require'dap.ui.widgets'.scopes)<CR>", { desc = 'View current scope' })
 
 ---------------------------------- Insert Mode --------------------------
 -- Debug
-keymap('i', '<F5>', function()
-  require('dap').toggle_breakpoint()
-end, { silent = true })
+keymap('i', '<F5>', '<Esc><cmd>RunNow<CR>', { silent = true, desc = 'Save, compile and run file' })
 
 keymap('n', '<C-l>hi', '<cmd>lua vim.lsp.buf.incoming_calls()<cr>', { silent = true, desc = 'incoming calls' })
 keymap('n', '<C-l>ho', '<cmd>lua vim.lsp.buf.outgoing_calls()<cr>', { silent = true, desc = 'outgoing calls' })
@@ -175,7 +170,9 @@ vim.api.nvim_set_keymap('t', '<Esc>', [[<C-\><C-n>]], { noremap = true })
 
 --cp cpp
 
-keymap('n', '<F10>', '<cmd>!g++ -o %< % && ./%< < input<cr>')
+keymap('n', '<F10>', function()
+  require('dap').step_over()
+end, { desc = 'Debugger step over' })
 
 --dabod
 --database

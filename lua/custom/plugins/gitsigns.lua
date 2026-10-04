@@ -1,7 +1,9 @@
 return {
   -- Adds git related signs to the gutter, as well as utilities for managing changes
   'lewis6991/gitsigns.nvim',
+  event = { 'BufReadPost', 'BufNewFile' },
   opts = {
+    max_file_length = 20000,
     -- See `:help gitsigns.txt`
     signs = {
       add = { text = '+' },
@@ -11,6 +13,9 @@ return {
       changedelete = { text = '~' },
     },
     on_attach = function(bufnr)
+      if vim.b[bufnr].large_file then
+        return false
+      end
       local gs = package.loaded.gitsigns
 
       local function map(mode, l, r, opts)

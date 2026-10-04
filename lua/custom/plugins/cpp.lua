@@ -73,6 +73,7 @@ return {
   {
     'Civitasv/cmake-tools.nvim',
     dependencies = {
+      'mfussenegger/nvim-dap',
       'stevearc/overseer.nvim',
     },
     cmd = {
@@ -329,7 +330,7 @@ return {
         },
         cmake_dap_configuration = { -- debug settings for cmake
           name = 'cpp',
-          type = 'codelldb',
+          type = 'lldb',
           request = 'launch',
           stopOnEntry = false,
           runInTerminal = true,
@@ -431,6 +432,21 @@ return {
         },
         cmake_virtual_text_support = true, -- Show the target related to current file using virtual text (at right corner)
       }
+      local cmake = require 'cmake-tools'
+      vim.api.nvim_create_user_command('CMakeRun', function(opts)
+        if opts.args == '' then
+          vim.cmd 'RunBuild'
+        elseif require('runner').save_sources() then
+          cmake.run(opts)
+        end
+      end, { nargs = '*', desc = 'Save, rebuild and run CMake project' })
+      vim.api.nvim_create_user_command('CMakeBuild', function(opts)
+        if opts.args == '' and not opts.bang then
+          vim.cmd 'BuildNow'
+        elseif require('runner').save_sources() then
+          cmake.build(opts)
+        end
+      end, { nargs = '*', bang = true, desc = 'Save and build CMake project' })
     end,
   },
 }

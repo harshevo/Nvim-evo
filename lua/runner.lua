@@ -1,10 +1,103 @@
--- ===== RunNow: reuse a single terminal buffer (split) and Shift-H closes it =====
-local RUNNER_CMD_NAME = 'RunNow'
-local BUILD_CMD_NAME = 'BuildNow'
-local BUILD_TOGGLE_CMD_NAME = 'BuildToggle'
-local RUN_BUILD_CMD_NAME = 'RunBuild'
-local CMAKE_INIT_CMD_NAME = 'CMakeInit'
-local ensure_terminal
+local run_command_in_terminal
+local run_build_to_quickfix
+local close_terminal_split
+local run_cmake_target
+local state = { buf = nil, chan = nil, prev_win = nil, source_buf = nil, build = nil, generation = 0, cmake_targets = {}, writes = {}, write_sequence = 0 }
+_G.RunNowState = state
+
+local function source_buffer()
+  local bufnr = vim.api.nvim_get_current_buf()
+  if vim.bo[bufnr].buftype ~= '' then
+    bufnr = state.source_buf
+  end
+  if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) or vim.api.nvim_buf_get_name(bufnr) == '' then
+    vim.notify('Open a named source file before building or running', vim.log.levels.ERROR)
+    return nil
+  end
+  return bufnr
+end
+
+local function with_source(callback)
+  local bufnr = source_buffer()
+  if bufnr then
+    state.source_buf = bufnr
+    local wins = vim.fn.win_findbuf(bufnr)
+    if #wins > 0 then
+      vim.api.nvim_set_current_win(wins[1])
+    else
+      local win = state.prev_win
+      if win and vim.api.nvim_win_is_valid(win) then
+        vim.api.nvim_set_current_win(win)
+      end
+      vim.api.nvim_set_current_buf(bufnr)
+    end
+    return callback()
+  end
+end
+
+local function save_sources()
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].buftype == '' and vim.bo[bufnr].modified then
+      if vim.api.nvim_buf_get_name(bufnr) == '' then
+        vim.notify('Save unnamed modified buffers before building or running', vim.log.levels.ERROR)
+        return false
+      end
+      local ok, err = pcall(vim.api.nvim_buf_call, bufnr, function()
+        vim.cmd 'silent update'
+      end)
+      if not ok then
+        vim.notify('Save failed: ' .. tostring(err), vim.log.levels.ERROR)
+        return false
+      end
+    end
+  end
+  return true
+end
+
+local function cancel_build()
+  state.generation = state.generation + 1
+  if state.build then
+    local process = state.build
+    state.build = nil
+    if process.pid then
+      pcall(vim.uv.kill, -process.pid, 15)
+    end
+    process:kill(15)
+  end
+end
+
+local function output_path(file_abs)
+  local dir = vim.fn.stdpath 'cache' .. '/runner/' .. vim.fn.sha256(file_abs):sub(1, 24)
+  vim.fn.mkdir(dir, 'p', 448)
+  return dir .. '/program'
+end
+
+local function current_extension()
+  local ext = vim.fn.expand '%:e'
+  return ext == 'C' and 'cpp' or ext:lower()
+end
+
+local function compile_command(file_abs, ext)
+  if ext ~= 'c' and ext ~= 'cpp' and ext ~= 'cc' and ext ~= 'cxx' then
+    return nil, 'Open a C/C++ source file to compile (headers are built through a project)'
+  end
+  local candidates = ext == 'c' and { 'clang', 'gcc', 'cc' } or { 'clang++', 'g++', 'c++' }
+  local compiler
+  for _, name in ipairs(candidates) do
+    if vim.fn.executable(name) == 1 then
+      compiler = name
+      break
+    end
+  end
+  if not compiler then
+    return nil, 'No C/C++ compiler found in PATH'
+  end
+  local out_bin = output_path(file_abs)
+  file_abs = vim.uv.fs_realpath(file_abs) or file_abs
+  local standard = ext == 'c' and '-std=c17' or '-std=c++20'
+  local cmd = ('%s %s -O0 -g -pipe -Wall -Wextra %s -o %s'):format(compiler, standard, vim.fn.shellescape(file_abs), vim.fn.shellescape(out_bin))
+  return cmd, out_bin
+end
 
 -- ---------- build command for current file ----------
 local function shellescape(s)
@@ -13,34 +106,43 @@ end
 
 local function build_cmd_for_current_file()
   local file_abs = vim.fn.expand '%:p'
-  local ext = vim.fn.expand('%:e'):lower()
-  local base = vim.fn.expand '%:t:r'
-  local out_bin = '/tmp/' .. base .. '_run'
-  local obj_file = '/tmp/' .. base .. '.o'
+  local ext = current_extension()
   if file_abs == '' then
     return nil, 'No file open'
   end
-  if ext == 'py' then
-    return ('python3 %s'):format(shellescape(file_abs))
-  elseif ext == 'c' then
-    return ('gcc -std=c17 -O2 -pipe -Wall -Wextra %s -o %s && %s'):format(shellescape(file_abs), shellescape(out_bin), shellescape(out_bin))
-  elseif ext == 'cpp' or ext == 'cc' or ext == 'cxx' then
-    return ('g++ -std=c++20 -O2 -pipe -Wall -Wextra %s -o %s && %s'):format(shellescape(file_abs), shellescape(out_bin), shellescape(out_bin))
+  if ext == 'c' or ext == 'cpp' or ext == 'cc' or ext == 'cxx' then
+    local cmd, out_bin = compile_command(file_abs, ext)
+    if not cmd then
+      return nil, out_bin
+    end
+    return cmd .. ' && exec ' .. shellescape(out_bin)
+  elseif ext == 'py' then
+    return 'exec python3 ' .. shellescape(file_abs)
+  elseif ext == 'js' then
+    return 'exec node ' .. shellescape(file_abs)
+  elseif ext == 'go' then
+    return 'exec go run ' .. shellescape(file_abs)
+  elseif ext == 'ts' or ext == 'tsx' then
+    return 'exec npx --no-install tsx ' .. shellescape(file_abs)
   elseif ext == 'asm' or ext == 's' then
-    return ('nasm -f elf32 %s -o %s && ld -m elf_i386 %s -o %s && %s'):format(
+    if vim.uv.os_uname().sysname ~= 'Linux' then
+      return nil, 'The NASM ELF32 runner requires Linux; use a project Makefile for assembly on macOS'
+    end
+    local out_bin = output_path(file_abs)
+    local obj_file = out_bin .. '.o'
+    return ('nasm -f elf32 %s -o %s && ld -m elf_i386 %s -o %s && exec %s'):format(
       shellescape(file_abs),
       shellescape(obj_file),
       shellescape(obj_file),
       shellescape(out_bin),
       shellescape(out_bin)
     )
-  else
-    return nil, ('Unsupported extension: %s'):format(ext)
   end
+  return nil, ('Unsupported extension: %s'):format(ext)
 end
 
 local function find_root(markers)
-  return vim.fs.root(0, markers) or vim.fn.getcwd()
+  return vim.fs.root(0, markers) or vim.fn.expand '%:p:h'
 end
 
 local function file_exists(path)
@@ -53,6 +155,38 @@ end
 
 local function executable(name)
   return vim.fn.executable(name) == 1
+end
+
+local function project_root()
+  local ext = current_extension()
+  local markers
+  if is_cpp_file(ext) or vim.bo.filetype == 'cmake' then
+    markers = { { 'CMakeLists.txt', 'Makefile', 'makefile' }, '.git' }
+  elseif ext == 'py' then
+    markers = { { 'pyproject.toml', 'setup.py', 'setup.cfg' }, '.git' }
+  elseif ext == 'go' then
+    markers = { 'go.mod', '.git' }
+  else
+    markers = { { 'package.json', 'tsconfig.json', 'Makefile', 'makefile' }, '.git' }
+  end
+  return find_root(markers)
+end
+
+local function make_changed_flags(root)
+  local paths, writes = {}, {}
+  for path, sequence in pairs(state.writes) do
+    if path:sub(1, #root + 1) == root .. '/' then
+      paths[#paths + 1] = path
+      writes[path] = sequence
+    end
+  end
+  table.sort(paths)
+  local flags = {}
+  for _, path in ipairs(paths) do
+    flags[#flags + 1] = '-W ' .. shellescape(path)
+    flags[#flags + 1] = '-W ' .. shellescape(path:sub(#root + 2))
+  end
+  return table.concat(flags, ' '), writes
 end
 
 local function find_cmake_build_dir(root)
@@ -82,20 +216,125 @@ local function read_json(path)
   end
 
   local ok_json, decoded = pcall(vim.json.decode, table.concat(lines, '\n'))
-  if ok_json then
+  if ok_json and type(decoded) == 'table' then
     return decoded
   end
 
   return nil
 end
 
-local function write_json(path, data)
-  local ok, encoded = pcall(vim.json.encode, data)
-  if not ok then
+local function cmake_target_details(build_dir)
+  local reply_dir = build_dir .. '/.cmake/api/v1/reply/'
+  local indexes = vim.fn.glob(reply_dir .. 'index-*.json', false, true)
+  table.sort(indexes)
+  local index = read_json(indexes[#indexes] or '')
+  local model
+  for _, object in ipairs(index and index.objects or {}) do
+    if object.kind == 'codemodel' then
+      model = read_json(reply_dir .. object.jsonFile)
+      break
+    end
+  end
+  local config = model and model.configurations and model.configurations[1]
+  local targets = {}
+  for _, target in ipairs(config and config.targets or {}) do
+    local details = read_json(reply_dir .. target.jsonFile)
+    if details then
+      targets[#targets + 1] = details
+    end
+  end
+  return targets
+end
+
+local function invalidate_changed_objects(build_dir, writes)
+  build_dir = vim.uv.fs_realpath(build_dir) or build_dir
+  local commands = read_json(build_dir .. '/compile_commands.json')
+  if not commands or #commands == 0 then
     return false
   end
-
-  return pcall(vim.fn.writefile, { encoded }, path)
+  local affected, removed = {}, false
+  for _, entry in ipairs(commands) do
+    local object = entry.output
+    if not object and entry.arguments then
+      for i, arg in ipairs(entry.arguments) do
+        if arg == '-o' then
+          object = entry.arguments[i + 1]
+          break
+        end
+      end
+    end
+    if not object and entry.command then
+      object = entry.command:match '%s%-o%s+"([^"]+)"' or entry.command:match "%s%-o%s+'([^']+)'" or entry.command:match '%s%-o%s+(%S+)'
+    end
+    if object then
+      object = vim.fs.normalize(object:sub(1, 1) == '/' and object or entry.directory .. '/' .. object)
+      if object:sub(1, #build_dir + 1) == build_dir .. '/' and object:match '%.o[bj]*$' then
+        local dependencies = ''
+        local ok, lines = pcall(vim.fn.readfile, object .. '.d')
+        if ok then
+          dependencies = table.concat(lines, '\n'):gsub('\\\n', ''):gsub('\\ ', ' ')
+        end
+        for path in pairs(writes) do
+          local real_path = vim.uv.fs_realpath(path) or path
+          if
+            real_path == entry.file
+            or path == entry.file
+            or dependencies:find(real_path, 1, true)
+            or dependencies:find(path, 1, true)
+            or dependencies == ''
+          then
+            -- Make can miss sub-second saves. Remove only affected generated objects.
+            vim.fn.delete(object)
+            local name = object:match '/CMakeFiles/(.-)%.dir/'
+            if not name then
+              return false
+            end
+            affected[name] = true
+            removed = true
+            break
+          end
+        end
+      end
+    end
+  end
+  if removed then
+    local targets = cmake_target_details(build_dir)
+    if #targets == 0 then
+      return false
+    end
+    for _, target in ipairs(targets) do
+      if affected[target.name] then
+        affected[target.id] = true
+      end
+    end
+    local changed = true
+    while changed do
+      changed = false
+      for _, target in ipairs(targets) do
+        if not affected[target.id] then
+          for _, dependency in ipairs(target.dependencies or {}) do
+            if affected[dependency.id] then
+              affected[target.id] = true
+              changed = true
+              break
+            end
+          end
+        end
+      end
+    end
+    for _, target in ipairs(targets) do
+      if affected[target.id] then
+        for _, artifact in ipairs(target.artifacts or {}) do
+          local path = vim.fs.normalize(artifact.path:sub(1, 1) == '/' and artifact.path or build_dir .. '/' .. artifact.path)
+          if path:sub(1, #build_dir + 1) ~= build_dir .. '/' then
+            return false
+          end
+          vim.fn.delete(path)
+        end
+      end
+    end
+  end
+  return true
 end
 
 local function run_config_path(root)
@@ -106,28 +345,34 @@ local function read_run_config(root)
   return read_json(run_config_path(root)) or {}
 end
 
-local function write_run_config(root, config)
-  return write_json(run_config_path(root), config)
-end
-
 local function project_language(ext, root)
-  if is_cpp_file(ext) then
+  if is_cpp_file(ext) or vim.bo.filetype == 'cmake' then
     return 'cpp'
   end
-  if ext == 'go' or file_exists(root .. '/go.mod') then
+  if ext == 'go' then
     return 'go'
   end
-  if ext == 'py' or file_exists(root .. '/pyproject.toml') then
+  if ext == 'py' then
     return 'python'
   end
-  if ext == 'ts' or ext == 'tsx' or file_exists(root .. '/tsconfig.json') then
+  if ext == 'ts' or ext == 'tsx' then
     return 'typescript'
   end
-  if ext == 'js' or ext == 'jsx' or file_exists(root .. '/package.json') then
+  if ext == 'js' or ext == 'jsx' then
     return 'javascript'
   end
-
-  return nil
+  if file_exists(root .. '/go.mod') then
+    return 'go'
+  end
+  if file_exists(root .. '/pyproject.toml') then
+    return 'python'
+  end
+  if file_exists(root .. '/tsconfig.json') then
+    return 'typescript'
+  end
+  if file_exists(root .. '/package.json') then
+    return 'javascript'
+  end
 end
 
 local function package_script(root, preferred)
@@ -148,7 +393,7 @@ end
 
 local function get_project_run_cmd(root, language, default_cmd)
   local config = read_run_config(root)
-  config.run = config.run or {}
+  config.run = type(config.run) == 'table' and config.run or {}
 
   local stored = config.run[language]
   if stored == false then
@@ -158,16 +403,6 @@ local function get_project_run_cmd(root, language, default_cmd)
     return stored
   end
 
-  local prompt = ('Run command for %s project. Empty = default [%s]: '):format(language, default_cmd)
-  local custom = vim.fn.input(prompt)
-  if custom and custom ~= '' then
-    config.run[language] = custom
-    write_run_config(root, config)
-    return custom
-  end
-
-  config.run[language] = false
-  write_run_config(root, config)
   return default_cmd
 end
 
@@ -225,8 +460,12 @@ local function init_cmake_project()
     project_name = 'app'
   end
 
-  local ext = vim.fn.expand('%:e'):lower()
-  local has_cpp = ext ~= 'c' or has_project_file(root, '%.cxx?$') or has_project_file(root, '%.cc$') or has_project_file(root, '%.hpp$') or has_project_file(root, '%.hxx$')
+  local ext = current_extension()
+  local has_cpp = ext ~= 'c'
+    or has_project_file(root, '%.cxx?$')
+    or has_project_file(root, '%.cc$')
+    or has_project_file(root, '%.hpp$')
+    or has_project_file(root, '%.hxx$')
   local language = has_cpp and 'C CXX' or 'C'
   local project_id = project_name:gsub('[^%w_]', '_')
 
@@ -344,30 +583,41 @@ local function init_cmake_project()
   vim.notify('Created CMakeLists.txt starter', vim.log.levels.INFO)
 end
 
-local function project_build_cmd()
+local function project_build_cmd(check_only)
   local file_abs = vim.fn.expand '%:p'
-  local ext = vim.fn.expand('%:e'):lower()
-  local base = vim.fn.expand '%:t:r'
-  local out_bin = '/tmp/' .. base .. '_run'
-  local root = find_root {
-    'package.json',
-    'tsconfig.json',
-    'Makefile',
-    'makefile',
-    'CMakeLists.txt',
-    'pyproject.toml',
-    'go.mod',
-    '.git',
-  }
+  local ext = current_extension()
+  local root = project_root()
 
-  if is_cpp_file(ext) then
-    local cmake_dir = find_cmake_build_dir(root)
-    if cmake_dir then
-      return ('cmake --build %s -- -j4'):format(shellescape(cmake_dir)), root, { run_cmake = true }
-    end
-
+  if is_cpp_file(ext) or vim.bo.filetype == 'cmake' then
     if file_exists(root .. '/CMakeLists.txt') then
-      return 'cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=1 && cmake --build build -- -j4', root, { run_cmake = true }
+      local dir = find_cmake_build_dir(root) or 'build'
+      local build_dir = root .. '/' .. dir
+      local query = build_dir .. '/.cmake/api/v1/query/codemodel-v2'
+      if not file_exists(query) then
+        vim.fn.mkdir(vim.fn.fnamemodify(query, ':h'), 'p')
+        vim.fn.writefile({}, query)
+      end
+      local debug_default = file_exists(build_dir .. '/CMakeCache.txt') and '' or ' -DCMAKE_BUILD_TYPE=Debug'
+      local configure = ''
+      if #vim.fn.glob(build_dir .. '/.cmake/api/v1/reply/codemodel-v2-*.json', false, true) == 0 or not file_exists(build_dir .. '/compile_commands.json') then
+        configure = ('cmake -S . -B %s -DCMAKE_EXPORT_COMPILE_COMMANDS=1%s && '):format(shellescape(dir), debug_default)
+      end
+      local flags, writes = make_changed_flags(root)
+      for path in pairs(writes) do
+        if vim.fn.fnamemodify(path, ':t') == 'CMakeLists.txt' or path:match '%.cmake$' then
+          configure = ('cmake -S . -B %s -DCMAKE_EXPORT_COMPILE_COMMANDS=1%s && '):format(shellescape(dir), debug_default)
+          break
+        end
+      end
+      local force = ''
+      if file_exists(build_dir .. '/Makefile') and flags ~= '' then
+        if not invalidate_changed_objects(build_dir, writes) then
+          force = ' --clean-first'
+        end
+      end
+      return configure .. ('cmake --build %s --parallel 4'):format(shellescape(dir)) .. force,
+        root,
+        { run_cmake = true, build_dir = build_dir, writes = writes }
     end
 
     if file_exists(root .. '/Makefile') or file_exists(root .. '/makefile') then
@@ -375,22 +625,40 @@ local function project_build_cmd()
       if has_make_target(root, 'run') then
         metadata.run_cmd = 'make run'
       end
-      return 'make', root, metadata
+      local flags, writes = make_changed_flags(root)
+      metadata.writes = writes
+      return 'make -j4 ' .. flags, root, metadata
     end
 
-    if executable('clangd') then
-      local compiler = ext == 'c' and 'clang' or 'clang++'
-      local standard = ext == 'c' and '-std=c17' or '-std=c++20'
-      local compile_cmd = ('%s %s -Wall -Wextra %s -o %s'):format(compiler, standard, shellescape(file_abs), shellescape(out_bin))
-      return (('clangd --check=%s && %s'):format(shellescape(file_abs), compile_cmd)), root, { clangd_check_file = file_abs, run_cmd = shellescape(out_bin) }
+    if check_only then
+      local is_c = vim.bo.filetype == 'c'
+      local compiler = is_c and 'clang' or 'clang++'
+      local standard = is_c and 'c17' or 'c++20'
+      local language = is_c and 'c' or 'c++'
+      return ('%s -x %s -std=%s -Wall -Wextra -fsyntax-only %s'):format(compiler, language, standard, shellescape(file_abs)), vim.fn.expand '%:p:h', {}
+    end
+    local compile_cmd, out_bin = compile_command(file_abs, ext)
+    if compile_cmd then
+      return compile_cmd, vim.fn.expand '%:p:h', { run_cmd = 'exec ' .. shellescape(out_bin), executable = out_bin }
+    end
+    vim.notify(out_bin, vim.log.levels.ERROR)
+    return nil, root
+  end
+
+  if ext == 'go' then
+    if file_exists(root .. '/go.mod') then
+      return 'go test ./...', root
     end
 
-    local compiler = ext == 'c' and 'clang' or 'clang++'
-    if executable(compiler) then
-      local standard = ext == 'c' and '-std=c17' or '-std=c++20'
-      local compile_cmd = ('%s %s -Wall -Wextra %s -o %s'):format(compiler, standard, shellescape(file_abs), shellescape(out_bin))
-      return compile_cmd, root, { run_cmd = shellescape(out_bin) }
+    return ('go test %s'):format(shellescape(file_abs)), vim.fn.expand '%:p:h'
+  end
+
+  if ext == 'py' then
+    if file_exists(root .. '/pyproject.toml') or file_exists(root .. '/setup.py') or file_exists(root .. '/setup.cfg') then
+      return 'python3 -m compileall -q .', root
     end
+
+    return ('python3 -m py_compile %s'):format(shellescape(file_abs)), root
   end
 
   if file_exists(root .. '/package.json') then
@@ -410,35 +678,11 @@ local function project_build_cmd()
     return 'make', root
   end
 
-  if ext == 'go' or file_exists(root .. '/go.mod') then
-    if file_exists(root .. '/go.mod') then
-      return 'go test ./...', root
-    end
-
-    return ('go test %s'):format(shellescape(file_abs)), vim.fn.expand '%:p:h'
-  end
-
-  if ext == 'py' then
-    if file_exists(root .. '/pyproject.toml') or file_exists(root .. '/setup.py') or file_exists(root .. '/setup.cfg') then
-      return 'python3 -m compileall -q .', root
-    end
-
-    return ('python3 -m py_compile %s'):format(shellescape(file_abs)), root
-  end
-
   if ext == 'js' or ext == 'jsx' then
     return ('node --check %s'):format(shellescape(file_abs)), root
   end
 
   return nil, root
-end
-
-local function run_command_in_terminal(cmd, cwd)
-  local bufnr, chan = ensure_terminal()
-  vim.api.nvim_set_current_buf(bufnr)
-
-  local cd_cmd = cwd and cwd ~= '' and ('cd ' .. shellescape(cwd) .. '\n') or ''
-  vim.api.nvim_chan_send(chan, 'clear\n' .. cd_cmd .. cmd .. '\n')
 end
 
 local function build_errorformat()
@@ -458,75 +702,23 @@ local function build_errorformat()
   }, ',')
 end
 
-local function normalize_build_lines(lines, metadata)
-  if not (metadata and metadata.clangd_check_file) then
-    return lines
-  end
-
-  local normalized = {}
-  for _, line in ipairs(lines) do
-    local level, lnum, message = line:match '^(%u)%b[]%s+%b[]%s+Line%s+(%d+):%s+(.+)$'
-    if level and lnum and message then
-      local kind = level == 'E' and 'error' or 'warning'
-      table.insert(normalized, ('%s:%s:1: %s: %s'):format(metadata.clangd_check_file, lnum, kind, message))
-    else
-      table.insert(normalized, line)
-    end
-  end
-
-  return normalized
-end
-
-local function setup_quickfix_mappings()
-  local bufnr = vim.api.nvim_get_current_buf()
-  if vim.bo[bufnr].filetype ~= 'qf' then
-    return
-  end
-
-  vim.opt_local.cursorline = true
-
-  local function select_quickfix_item(delta)
-    local qf_size = vim.fn.getqflist({ size = 0 }).size
-    if qf_size == 0 then
-      return
-    end
-
-    local row = vim.api.nvim_win_get_cursor(0)[1] + delta
-    if row < 1 then
-      row = qf_size
-    elseif row > qf_size then
-      row = 1
-    end
-
-    vim.api.nvim_win_set_cursor(0, { row, 0 })
-  end
-
-  vim.keymap.set('n', 'j', function()
-    select_quickfix_item(1)
-  end, { buffer = bufnr, silent = true, desc = 'Select next quickfix item' })
-
-  vim.keymap.set('n', 'k', function()
-    select_quickfix_item(-1)
-  end, { buffer = bufnr, silent = true, desc = 'Select previous quickfix item' })
-
-  vim.keymap.set('n', '<leader>b', '<cmd>BuildToggle<CR>', { buffer = bufnr, silent = true, desc = 'Close build quickfix' })
-end
-
-local function set_build_quickfix(lines, cmd, cwd, metadata)
+local function set_build_quickfix(lines, cmd, cwd, panel)
   local old_cwd = vim.fn.getcwd()
-  pcall(vim.cmd.lcd, vim.fn.fnameescape(cwd))
+  vim.fn.chdir(cwd)
 
   vim.fn.setqflist({}, ' ', {
     title = 'BuildNow: ' .. cmd,
-    lines = normalize_build_lines(lines, metadata),
+    lines = lines,
     efm = build_errorformat(),
   })
 
-  pcall(vim.cmd.lcd, vim.fn.fnameescape(old_cwd))
+  vim.fn.chdir(old_cwd)
 
+  if panel then
+    return
+  end
   if vim.fn.getqflist({ size = 0 }).size > 0 then
     vim.cmd 'botright copen 12'
-    setup_quickfix_mappings()
   else
     vim.cmd 'cclose'
   end
@@ -543,47 +735,142 @@ local function quickfix_win()
   return nil
 end
 
-local function run_build_to_quickfix(opts)
-  vim.cmd 'write'
-
-  local cmd, cwd, metadata
-  if opts and opts.args and opts.args ~= '' then
-    cmd = opts.args
-    cwd = vim.fn.getcwd()
-  else
-    cmd, cwd, metadata = project_build_cmd()
+run_build_to_quickfix = function(opts, run_after)
+  if not save_sources() then
+    return
   end
 
+  cancel_build()
+  local cmd, cwd, metadata
+  if opts and opts.args and opts.args ~= '' then
+    cmd, cwd = opts.args, vim.fn.getcwd()
+  else
+    cmd, cwd, metadata = project_build_cmd(opts and opts.check)
+  end
   if not cmd then
     vim.notify('No build/check command found for this file or project', vim.log.levels.ERROR)
     return
   end
+  if run_after and not (metadata and (metadata.run_cmd or metadata.run_cmake)) then
+    vim.notify('This project needs a run command in .nvim-run.json or a Makefile run target', vim.log.levels.ERROR)
+    return
+  end
 
-  vim.notify('BuildNow: ' .. cmd, vim.log.levels.INFO)
-
-  vim.system({ vim.o.shell, vim.o.shellcmdflag, cmd }, { cwd = cwd, text = true }, function(result)
+  local generation = state.generation
+  vim.fn.setqflist({}, 'r', { title = 'Checking: ' .. vim.fn.fnamemodify(cwd, ':t'), items = opts and opts.panel and vim.fn.getqflist() or {} })
+  if not (opts and opts.panel) then
+    vim.notify('Building project...', vim.log.levels.INFO)
+  end
+  local ok, process = pcall(vim.system, { vim.o.shell, vim.o.shellcmdflag, cmd }, { cwd = cwd, text = true, detach = true }, function(result)
     vim.schedule(function()
+      if generation ~= state.generation then
+        return
+      end
+      state.build = nil
       local lines = {}
       for _, stream in ipairs { result.stdout or '', result.stderr or '' } do
         for line in vim.gsplit(stream, '\n', { plain = true, trimempty = true }) do
           table.insert(lines, line)
         end
       end
-
-      set_build_quickfix(lines, cmd, cwd, metadata)
-
+      set_build_quickfix(lines, cmd, cwd, opts and opts.panel)
       local count = vim.fn.getqflist({ size = 0 }).size
-      if result.code == 0 and count == 0 then
-        vim.notify('BuildNow: success', vim.log.levels.INFO)
-      elseif result.code == 0 and count > 0 then
-        vim.notify(('BuildNow: success with %d quickfix item(s)'):format(count), vim.log.levels.WARN)
-      elseif count > 0 then
-        vim.notify(('BuildNow: %d quickfix item(s)'):format(count), vim.log.levels.WARN)
+      if result.code ~= 0 then
+        if count == 0 then
+          vim.fn.setqflist({}, 'r', {
+            title = 'Build failed: ' .. cmd,
+            items = { { text = table.concat(lines, ' ') ~= '' and table.concat(lines, ' ') or ('Exit code ' .. result.code) } },
+          })
+          if not (opts and opts.panel) then
+            vim.cmd 'botright copen 12'
+          end
+        end
+        vim.fn.setqflist({}, 'a', { title = 'Check failed: ' .. cmd })
+        if not (opts and opts.panel) then
+          vim.notify('Build failed; executable was not run', vim.log.levels.ERROR)
+        end
       else
-        vim.notify('BuildNow failed, but no jumpable errors were parsed', vim.log.levels.WARN)
+        for path, sequence in pairs(metadata and metadata.writes or {}) do
+          if state.writes[path] == sequence then
+            state.writes[path] = nil
+          end
+        end
+        if opts and opts.on_success then
+          opts.on_success(metadata or {}, cwd, generation)
+        elseif run_after and metadata.run_cmake then
+          run_cmake_target(metadata, cwd, generation)
+        elseif run_after then
+          run_command_in_terminal(metadata.run_cmd, cwd)
+        else
+          vim.fn.setqflist({}, 'a', { title = count == 0 and 'Check complete: no errors' or 'Check complete: warnings' })
+          if not (opts and opts.panel) then
+            vim.notify('Build succeeded', vim.log.levels.INFO)
+          end
+        end
       end
     end)
   end)
+  if ok then
+    state.build = process
+  else
+    vim.notify('Unable to start build: ' .. tostring(process), vim.log.levels.ERROR)
+  end
+end
+
+run_cmake_target = function(metadata, root, generation, on_target)
+  local targets = {}
+  for _, details in ipairs(cmake_target_details(metadata.build_dir)) do
+    if details.type == 'EXECUTABLE' and details.artifacts and details.artifacts[1] then
+      local path = details.artifacts[1].path
+      targets[#targets + 1] = {
+        name = details.name,
+        path = path:sub(1, 1) == '/' and path or metadata.build_dir .. '/' .. path,
+      }
+    end
+  end
+  if #targets == 0 then
+    vim.notify('CMake build has no executable target', vim.log.levels.ERROR)
+    return
+  end
+  local function launch(target)
+    if not target or generation ~= state.generation then
+      return
+    end
+    state.cmake_targets[root] = target.name
+    if on_target then
+      on_target(target.path, root)
+    else
+      run_command_in_terminal('exec ' .. shellescape(target.path), root)
+    end
+  end
+  local run_config = read_run_config(root)
+  local selected = run_config.cmake_target or state.cmake_targets[root]
+  local cmake = package.loaded['cmake-tools']
+  if not selected and cmake and cmake.is_cmake_project() then
+    selected = cmake.get_launch_target()
+  end
+  for _, target in ipairs(targets) do
+    if target.name == selected or #targets == 1 then
+      launch(target)
+      return
+    end
+  end
+  vim.ui.select(targets, {
+    prompt = 'CMake executable:',
+    format_item = function(target)
+      return target.name
+    end,
+  }, launch)
+end
+
+local function check_signature(bufnr)
+  local parts = { vim.api.nvim_buf_get_name(bufnr) }
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].buftype == '' then
+      parts[#parts + 1] = buf .. ':' .. vim.api.nvim_buf_get_changedtick(buf)
+    end
+  end
+  return table.concat(parts, '|')
 end
 
 local function toggle_build_quickfix()
@@ -591,294 +878,267 @@ local function toggle_build_quickfix()
     vim.cmd 'cclose'
     return
   end
-
-  run_build_to_quickfix {}
+  local bufnr = vim.api.nvim_get_current_buf()
+  local key = check_signature(bufnr)
+  if state.check_key ~= key and not state.build then
+    local diagnostics = vim.diagnostic.get(bufnr)
+    vim.fn.setqflist({}, 'r', { title = 'C/C++ diagnostics; checking...', items = vim.diagnostic.toqflist(diagnostics) })
+  end
+  vim.cmd 'botright copen 12'
+  if state.build or state.check_pending then
+    return
+  end
+  if state.check_key == key and state.check_time and vim.uv.hrtime() - state.check_time < 2e9 then
+    return
+  end
+  local generation = state.generation
+  state.check_pending = true
+  vim.defer_fn(function()
+    state.check_pending = false
+    if generation ~= state.generation or not vim.api.nvim_buf_is_valid(bufnr) then
+      return
+    end
+    vim.api.nvim_buf_call(bufnr, function()
+      run_build_to_quickfix { panel = true, check = true }
+      state.check_key = check_signature(bufnr)
+      state.check_time = vim.uv.hrtime()
+    end)
+  end, 20)
 end
 
 local function run_built_target()
+  if not save_sources() then
+    return
+  end
+  cancel_build()
+  close_terminal_split(false)
   local file_abs = vim.fn.expand '%:p'
-  local ext = vim.fn.expand('%:e'):lower()
-  local base = vim.fn.expand '%:t:r'
-  local out_bin = '/tmp/' .. base .. '_run'
-  local root = find_root {
-    'package.json',
-    'tsconfig.json',
-    'Makefile',
-    'makefile',
-    'CMakeLists.txt',
-    'pyproject.toml',
-    'go.mod',
-    '.git',
-  }
-
+  local ext = current_extension()
+  local root = project_root()
   local language = project_language(ext, root)
 
-  if is_cpp_file(ext) then
-    if file_exists(root .. '/CMakeLists.txt') then
-      local ok, err = pcall(vim.cmd, 'CMakeRun')
-      if not ok then
-        vim.notify('RunBuild: CMakeRun failed: ' .. tostring(err), vim.log.levels.WARN)
+  if is_cpp_file(ext) or vim.bo.filetype == 'cmake' then
+    local config = read_run_config(root)
+    local custom = type(config.run) == 'table' and config.run.cpp
+    if type(custom) == 'string' and custom ~= '' then
+      local cmd, cwd = project_build_cmd()
+      if cmd then
+        run_command_in_terminal(cmd .. ' && ' .. custom, cwd)
       end
-      return
-    end
-
-    if file_exists(root .. '/Makefile') or file_exists(root .. '/makefile') then
-      if has_make_target(root, 'run') then
-        run_command_in_terminal('make run', root)
-      else
-        vim.notify('RunBuild: Makefile has no run target', vim.log.levels.WARN)
-      end
-      return
-    end
-
-    if file_exists(out_bin) then
-      run_command_in_terminal(shellescape(out_bin), root)
     else
-      vim.notify('RunBuild: no built executable found. Press <leader>b first.', vim.log.levels.WARN)
+      run_build_to_quickfix({}, true)
     end
     return
   end
 
+  local default_cmd
   if language == 'go' then
-    local default_cmd = file_exists(root .. '/go.mod') and 'go run .' or ('go run %s'):format(shellescape(file_abs))
+    default_cmd = file_exists(root .. '/go.mod') and 'go run .' or ('go run %s'):format(shellescape(file_abs))
+  elseif language == 'python' then
+    local python = root .. '/.venv/bin/python'
+    default_cmd = ('%s %s'):format(executable(python) and shellescape(python) or 'python3', shellescape(file_abs))
+  elseif language == 'typescript' then
+    default_cmd = package_script(root, { 'start', 'dev' }) or ('npx --no-install tsx %s'):format(shellescape(file_abs))
+  elseif language == 'javascript' then
+    default_cmd = package_script(root, { 'start', 'dev' }) or ('node %s'):format(shellescape(file_abs))
+  end
+  if default_cmd then
+    cancel_build()
     run_command_in_terminal(get_project_run_cmd(root, language, default_cmd), root)
     return
   end
-
-  if language == 'python' then
-    local default_cmd = ('python3 %s'):format(shellescape(file_abs))
-    run_command_in_terminal(get_project_run_cmd(root, language, default_cmd), root)
-    return
-  end
-
-  if language == 'typescript' then
-    local default_cmd = package_script(root, { 'start', 'dev' }) or ('npx tsx %s'):format(shellescape(file_abs))
-    run_command_in_terminal(get_project_run_cmd(root, language, default_cmd), root)
-    return
-  end
-
-  if language == 'javascript' then
-    local default_cmd = package_script(root, { 'start', 'dev' }) or ('node %s'):format(shellescape(file_abs))
-    run_command_in_terminal(get_project_run_cmd(root, language, default_cmd), root)
-    return
-  end
-
   local cmd, err = build_cmd_for_current_file()
-  if not cmd then
-    vim.notify(err, vim.log.levels.ERROR)
-    return
-  end
-  run_command_in_terminal(cmd, root)
-end
-
--- ---------- global state ----------
-_G.RunNowState = _G.RunNowState or { buf = nil, chan = nil, prev_win = nil, stopping = false }
-
-local function stop_terminal_job(chan)
-  if not chan then
-    return
-  end
-
-  local ok, status = pcall(vim.fn.jobwait, { chan }, 0)
-  if not ok or status[1] ~= -1 then
-    return
-  end
-
-  pcall(vim.api.nvim_chan_send, chan, '\003')
-  ok, status = pcall(vim.fn.jobwait, { chan }, 150)
-  if ok and status[1] ~= -1 then
-    return
-  end
-
-  pcall(vim.fn.jobstop, chan)
-  ok, status = pcall(vim.fn.jobwait, { chan }, 500)
-  if ok and status[1] ~= -1 then
-    return
-  end
-
-  local pid = vim.fn.jobpid(chan)
-  if pid and pid > 0 then
-    pcall(vim.system, { 'kill', '-TERM', '-' .. pid })
-  end
-end
-
--- ---------- close terminal split (buffer-local mapping will call this) ----------
-local function close_terminal_split()
-  local s = _G.RunNowState
-  if not (s and s.buf and vim.api.nvim_buf_is_valid(s.buf)) then
-    return
-  end
-
-  local bufnr = s.buf
-  stop_terminal_job(s.chan)
-
-  local wins = vim.fn.win_findbuf(s.buf)
-  if #wins == 0 then
-    -- terminal not visible; just ensure buffer is wiped and state cleared
-    pcall(vim.cmd, 'bwipeout! ' .. bufnr)
-    s.buf, s.chan, s.prev_win = nil, nil, nil
-    return
-  end
-
-  -- pick a valid window showing the terminal
-  local winid = nil
-  for _, w in ipairs(wins) do
-    if vim.api.nvim_win_is_valid(w) then
-      winid = w
-      break
-    end
-  end
-  if not winid then
-    return
-  end
-
-  -- attempt to return focus to recorded prev_win after wipe
-  local prev = s.prev_win
-  -- make terminal window current, then wipe the buffer (this closes the window)
-  pcall(vim.api.nvim_set_current_win, winid)
-  pcall(vim.cmd, 'bwipeout! ' .. bufnr)
-
-  -- restore focus: prefer prev_win if still valid, else try to move up
-  if prev and vim.api.nvim_win_is_valid(prev) then
-    pcall(vim.api.nvim_set_current_win, prev)
+  if cmd then
+    cancel_build()
+    run_command_in_terminal(cmd, root)
   else
-    -- best-effort: move to the window above
-    pcall(vim.cmd, 'wincmd k')
+    vim.notify(err, vim.log.levels.ERROR)
   end
-
-  -- clear stored state (BufWipeout autocmd may also handle this, but keep it tidy)
-  s.buf, s.chan, s.prev_win = nil, nil, nil
 end
 
--- ---------- create / reuse terminal ----------
-local function create_terminal()
-  -- record the window we'll return to later
+local function stop_terminal_job()
+  if state.chan then
+    pcall(vim.fn.jobstop, state.chan)
+    state.chan = nil
+  end
+end
+
+close_terminal_split = function(restore_focus)
+  local prev_win, bufnr = state.prev_win, state.buf
+  stop_terminal_job()
+  state.buf = nil
+  if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+    pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+  end
+  if restore_focus ~= false and prev_win and vim.api.nvim_win_is_valid(prev_win) then
+    vim.api.nvim_set_current_win(prev_win)
+  end
+end
+
+run_command_in_terminal = function(cmd, cwd)
   local prev_win = vim.api.nvim_get_current_win()
-
-  -- force bottom horizontal split, set height, and create a fresh buffer there
-  vim.cmd 'botright split'
-  vim.cmd 'resize 15'
-  vim.cmd 'enew'
-
-  local bufnr = vim.api.nvim_get_current_buf()
-  local shell_cmd = vim.o.shell or 'bash'
-  local chan = vim.fn.termopen(shell_cmd, { cwd = vim.fn.getcwd() })
-
-  pcall(vim.api.nvim_buf_set_name, bufnr, 'RunNow Terminal')
-  pcall(vim.api.nvim_buf_set_option, bufnr, 'buflisted', false)
-  pcall(vim.api.nvim_buf_set_option, bufnr, 'swapfile', false)
-  pcall(vim.api.nvim_buf_set_option, bufnr, 'bufhidden', 'wipe')
-
-  -- one augroup per buffer to avoid duplicate autocmds
-  local aug = vim.api.nvim_create_augroup('RunNow_' .. bufnr, { clear = true })
-
-  -- When wiped, clear global state so next run recreates a clean terminal
+  local old_buf = state.buf
+  local wins = old_buf and vim.api.nvim_buf_is_valid(old_buf) and vim.fn.win_findbuf(old_buf) or {}
+  stop_terminal_job()
+  state.buf = nil
+  if #wins > 0 then
+    if prev_win ~= wins[1] then
+      state.prev_win = prev_win
+    end
+    vim.api.nvim_set_current_win(wins[1])
+  else
+    state.prev_win = prev_win
+    vim.cmd 'botright 15split'
+  end
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_win_set_buf(0, bufnr)
+  state.buf = bufnr
+  if old_buf and vim.api.nvim_buf_is_valid(old_buf) then
+    pcall(vim.api.nvim_buf_delete, old_buf, { force = true })
+  end
+  vim.bo[bufnr].bufhidden = 'wipe'
+  vim.bo[bufnr].swapfile = false
+  vim.bo[bufnr].buflisted = false
+  vim.api.nvim_buf_set_name(bufnr, 'RunNow Output')
+  local ok, chan = pcall(vim.fn.jobstart, { vim.o.shell, vim.o.shellcmdflag, cmd }, {
+    cwd = cwd,
+    term = true,
+    on_exit = function(_, code)
+      vim.schedule(function()
+        if state.buf == bufnr then
+          state.chan = nil
+          if code ~= 0 then
+            vim.notify(('Run exited with code %d'):format(code), vim.log.levels.ERROR)
+          end
+        end
+      end)
+    end,
+  })
+  if not ok or chan <= 0 then
+    vim.notify('Unable to start command: ' .. tostring(chan), vim.log.levels.ERROR)
+    return
+  end
+  state.chan = chan
+  local group = vim.api.nvim_create_augroup('RunNowTerminal', { clear = true })
   vim.api.nvim_create_autocmd('BufWipeout', {
-    group = aug,
+    group = group,
     buffer = bufnr,
     callback = function()
-      if _G.RunNowState and _G.RunNowState.buf == bufnr then
-        if not _G.RunNowState.stopping then
-          _G.RunNowState.stopping = true
-          stop_terminal_job(_G.RunNowState.chan)
-          _G.RunNowState.stopping = false
-        end
-        _G.RunNowState.buf, _G.RunNowState.chan, _G.RunNowState.prev_win = nil, nil, nil
+      if state.buf == bufnr then
+        stop_terminal_job()
+        state.buf = nil
       end
     end,
   })
-
-  -- buffer-local mappings:
-  -- Normal mode: press Shift-H (capital H) to close the terminal and return above
-  vim.keymap.set('n', 'K', close_terminal_split, { buffer = bufnr, noremap = true, silent = true })
-
-  -- Terminal mode: pressing Shift-H should first get us to Normal mode, then close.
-  vim.keymap.set('t', 'H', function()
-    -- exit terminal-mode to Normal mode, then run close routine
-    local esc = vim.api.nvim_replace_termcodes('<C-\\><C-n>', true, false, true)
-    vim.api.nvim_feedkeys(esc, 'n', true)
-    close_terminal_split()
-  end, { buffer = bufnr, noremap = true, silent = true })
-
-  _G.RunNowState.buf = bufnr
-  _G.RunNowState.chan = chan
-  _G.RunNowState.prev_win = prev_win
-  _G.RunNowState.stopping = false
-  return bufnr, chan
+  vim.keymap.set('n', 'H', close_terminal_split, { buffer = bufnr, silent = true, desc = 'Close run output' })
+  vim.keymap.set('n', 'K', close_terminal_split, { buffer = bufnr, silent = true, desc = 'Close run output' })
+  vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', { buffer = bufnr, silent = true, desc = 'Leave terminal input' })
+  vim.keymap.set({ 'n', 't' }, '<F5>', function()
+    with_source(function()
+      vim.cmd 'RunNow'
+    end)
+  end, { buffer = bufnr, silent = true, desc = 'Rerun source file' })
+  vim.keymap.set('n', '<leader>r', function()
+    with_source(run_built_target)
+  end, { buffer = bufnr, silent = true, desc = 'Rebuild and run project' })
+  vim.cmd 'startinsert'
 end
 
-function ensure_terminal()
-  local s = _G.RunNowState
-  if s.buf and vim.api.nvim_buf_is_valid(s.buf) and s.chan then
-    local wins = vim.fn.win_findbuf(s.buf)
-    if #wins == 0 then
-      -- terminal exists but is hidden: open it at bottom and set it visible
-      s.prev_win = vim.api.nvim_get_current_win()
-      vim.cmd 'botright split'
-      vim.cmd 'resize 15'
-      vim.api.nvim_set_current_buf(s.buf)
-    else
-      -- if already visible somewhere, just focus it
-      pcall(vim.api.nvim_set_current_win, wins[1])
-    end
-    return s.buf, s.chan
+local function run_current_file(opts)
+  if not save_sources() then
+    return
   end
-  return create_terminal()
-end
-
--- ---------- run file ----------
-local function run_current_file()
-  vim.cmd 'write'
   local cmd, err = build_cmd_for_current_file()
   if not cmd then
     vim.notify(err, vim.log.levels.ERROR)
     return
   end
-
-  local args = vim.fn.input 'Args? '
-  if args and args ~= '' then
-    cmd = cmd .. ' ' .. args
+  if opts.args ~= '' then
+    cmd = cmd .. ' ' .. opts.args
   end
-
-  local bufnr, chan = ensure_terminal()
-  -- ensure terminal window is visible and focused
-  vim.api.nvim_set_current_buf(bufnr)
-
-  local ok = pcall(function()
-    vim.api.nvim_chan_send(chan, 'clear\n')
-    vim.api.nvim_chan_send(chan, cmd .. '\n')
-  end)
-  if not ok then
-    bufnr, chan = create_terminal()
-    vim.api.nvim_set_current_buf(bufnr)
-    local ok2, send_err2 = pcall(vim.api.nvim_chan_send, chan, cmd .. '\n')
-    if not ok2 then
-      vim.notify('Failed to send command to terminal: ' .. tostring(send_err2), vim.log.levels.ERROR)
-      return
-    end
-  end
+  cancel_build()
+  run_command_in_terminal(cmd, vim.fn.expand '%:p:h')
 end
 
--- ---------- user commands / mappings ----------
-vim.api.nvim_create_user_command(RUNNER_CMD_NAME, run_current_file, {})
-vim.api.nvim_create_user_command(BUILD_CMD_NAME, run_build_to_quickfix, {
-  nargs = '*',
-  complete = 'shellcmd',
+vim.api.nvim_create_user_command('RunNow', function(opts)
+  with_source(function()
+    run_current_file(opts)
+  end)
+end, { nargs = '*', complete = 'file', desc = 'Save, compile and run current file; optional shell arguments' })
+vim.api.nvim_create_user_command('BuildNow', function(opts)
+  with_source(function()
+    run_build_to_quickfix(opts)
+  end)
+end, { nargs = '*', complete = 'shellcmd', desc = 'Save and build project asynchronously' })
+vim.api.nvim_create_user_command('BuildToggle', function()
+  with_source(toggle_build_quickfix)
+end, {})
+vim.api.nvim_create_user_command('RunBuild', function()
+  with_source(run_built_target)
+end, { desc = 'Save, rebuild and run project' })
+vim.api.nvim_create_user_command('RunStop', function()
+  cancel_build()
+  close_terminal_split()
+end, { desc = 'Stop active runner build and close run output' })
+vim.api.nvim_create_user_command('CMakeInit', init_cmake_project, {})
+vim.api.nvim_create_autocmd('BufWritePost', {
+  group = vim.api.nvim_create_augroup('RunnerSavedSources', { clear = true }),
+  callback = function(event)
+    local path = vim.api.nvim_buf_get_name(event.buf)
+    local ext = vim.fn.fnamemodify(path, ':e'):lower()
+    if vim.bo[event.buf].buftype == '' and (is_cpp_file(ext) or vim.bo[event.buf].filetype == 'cmake') then
+      state.write_sequence = state.write_sequence + 1
+      state.writes[path] = state.write_sequence
+    end
+  end,
 })
-vim.api.nvim_create_user_command(BUILD_TOGGLE_CMD_NAME, toggle_build_quickfix, {})
-vim.api.nvim_create_user_command(RUN_BUILD_CMD_NAME, run_built_target, {})
-vim.api.nvim_create_user_command(CMAKE_INIT_CMD_NAME, init_cmake_project, {})
 
-vim.keymap.set('n', '<F5>', function()
-  vim.cmd(RUNNER_CMD_NAME)
-end, { noremap = true, silent = true })
+vim.api.nvim_create_autocmd('VimLeavePre', {
+  group = vim.api.nvim_create_augroup('RunNowCleanup', { clear = true }),
+  callback = function()
+    cancel_build()
+    stop_terminal_job()
+  end,
+})
 
-vim.keymap.set('n', '<leader>b', '<cmd>BuildToggle<CR>', { noremap = true, silent = true, desc = 'Toggle build quickfix' })
-
-vim.keymap.set('n', '<leader>r', function()
-  vim.cmd(RUN_BUILD_CMD_NAME)
-end, { noremap = true, silent = true, desc = 'Run built target' })
-
+vim.keymap.set('n', '<F5>', '<cmd>RunNow<CR>', { silent = true, desc = 'Save, compile and run file' })
+vim.keymap.set('n', '<leader>b', '<cmd>BuildToggle<CR>', { silent = true, nowait = true, desc = 'Toggle error pane and check in background' })
+vim.keymap.set('n', '<leader>r', '<cmd>RunBuild<CR>', { silent = true, desc = 'Rebuild and run project' })
+vim.keymap.set('n', '<leader>B', '<cmd>BuildNow<CR>', { silent = true, desc = 'Force full project build/check' })
 vim.keymap.set('n', '<leader>co', '<cmd>copen<CR>', { silent = true, desc = 'Open quickfix' })
 vim.keymap.set('n', '<leader>cn', '<cmd>cnext<CR>', { silent = true, desc = 'Next quickfix item' })
 vim.keymap.set('n', '<leader>cp', '<cmd>cprev<CR>', { silent = true, desc = 'Previous quickfix item' })
+
+return {
+  save_sources = save_sources,
+  debug = function()
+    with_source(function()
+      run_build_to_quickfix {
+        on_success = function(metadata, cwd, generation)
+          local function launch(path)
+            require('dap').run {
+              name = 'C/C++ debug',
+              type = 'lldb',
+              request = 'launch',
+              program = path,
+              cwd = cwd,
+              stopOnEntry = false,
+              runInTerminal = true,
+            }
+          end
+          if metadata.run_cmake then
+            run_cmake_target(metadata, cwd, generation, launch)
+          elseif metadata.executable then
+            launch(metadata.executable)
+          else
+            vim.ui.input({ prompt = 'Executable to debug: ', default = cwd .. '/', completion = 'file' }, function(path)
+              if path and vim.fn.executable(path) == 1 and generation == state.generation then
+                launch(path)
+              end
+            end)
+          end
+        end,
+      }
+    end)
+  end,
+}
