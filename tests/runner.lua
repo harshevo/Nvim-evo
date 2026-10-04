@@ -41,7 +41,7 @@ local function suite()
   run_until('RunNow', 'FIRST_VALUE')
   assert(table.concat(vim.fn.readfile(file), '\n'):find('FIRST_VALUE', 1, true))
   assert(vim.bo.buftype == 'terminal', 'Runner must leave output focused')
-  passed 'F5 path saves and compiles modified C++'
+  passed 'Space R path saves and compiles modified C++'
 
   vim.api.nvim_buf_set_lines(source, 0, -1, false, cpp 'SECOND_VALUE')
   run_until('RunBuild', 'SECOND_VALUE') -- triggered from previous output
@@ -65,7 +65,7 @@ local function suite()
     return _G.RunNowState.chan == nil and output():find('error:', 1, true) ~= nil
   end, 'No file compile error')
   assert(not output():find('FILE_FAILURE_BASE', 1, true))
-  passed 'Failed F5 compile shows fresh error output without old program'
+  passed 'Failed Space R compile shows fresh error output without old program'
 
   local other_dir = fixture .. "/same name with space'quote"
   vim.fn.mkdir(other_dir, 'p')

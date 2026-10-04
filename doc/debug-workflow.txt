@@ -1,0 +1,104 @@
+*debug-workflow.txt*  Run, debug and inspect C/C++ and Python
+
+RUN AND DEBUG                                        *debug-workflow*
+
+All shortcuts below start with Space in NORMAL mode. Uppercase R/O/M/B/S
+are intentional. In a terminal, press Esc first, then the Space shortcut.
+Function keys are no longer mapped for running or debugging.
+
+  Space R       Save and run current file
+  Space r       Save, build and run project
+  Space S       Stop program/build and close run output
+  Space dc      Save/build and start debugger; continue an active session
+  Space db      Toggle breakpoint on current source line
+  Space dB      List breakpoints in quickfix
+  Space dt      Set conditional breakpoint
+  Space dx      Clear all breakpoints
+  Space di      Step INTO a function
+  Space do      Step OVER the current line
+  Space dO      Step OUT to caller
+  Space dn      Run to cursor
+  Space dp      Pause the running debuggee
+  Space dq      Terminate debugging
+  Space dR      Restart the current debug session
+  Space dk      Select caller frame (up the call stack)
+  Space dj      Select callee frame (down the call stack)
+  Space ds      Inspect local variables/scopes
+  Space df      Inspect stack frames
+  Space de      Evaluate cursor expression or visual selection
+  Space dr      Toggle debugger REPL
+  Space du      Toggle debugger panels (variables, watches, stack, console)
+  Space dm      Toggle right memory view
+  Space dM      Choose memory address/expression
+  Space da      Toggle right assembly / Python bytecode view
+  Space dv      Refresh visible memory and assembly panes
+  Space dh      Open this guide
+  Space pp      Language command palette
+  Space fk      Search all shortcuts
+
+Set a breakpoint, then Space dc. Step with Space di/do/dO. In C/C++, choose
+an address such as &value with Space dM. Space dm shows 128 bytes as hex/ASCII
+(default: stack pointer); Space da shows instructions near the stopped frame.
+Visible views refresh after stepping or changing frames, and clear when the
+process resumes/exits. q or Esc hides a view. Enter jumps to a source location
+when the debugger supplies one. LLDB commands also work in the debug REPL.
+
+For Python, Space dm shows object type/value and shallow size; Space dM selects
+a Python expression. Space da disassembles the selected function from saved
+source into Python bytecode. These are object/bytecode views, not native memory
+or live machine assembly. Debugpy does not expose native process memory.
+Evaluating Python expressions may call user code. Use simple variables when
+inspecting values. Saved-source bytecode may differ if source changed since
+launch; use the selected project's Python version.
+
+Space dR restarts the existing debug launch and executable. To debug edited
+C/C++ code, use Space dq then Space dc to save and rebuild first. Space R/r
+always save before running; failed builds never launch the previous binary.
+
+MEMORY-CHECK SIDEBAR                                  *memory-check-sidebar*
+
+  Space vg      Run memory checks if needed; toggle the RIGHT vertical pane
+  Space vR      Save/build and run a fresh memory check
+  Space vq      Cancel memory checking (including a pending build)
+  :ValgrindRun args...   Run memory checking with program arguments
+
+Opening Space vg starts a check for new/edited source. Hiding is instant and
+does not cancel the job. Opening unchanged results displays the cached report
+without rerunning. Press Space vR after external edits or to inspect another
+run. Enter on a source frame jumps to the file/line. q/Esc also hide the pane.
+Checks run asynchronously with captured output; full output appears on exit.
+These runs have no interactive stdin; use a deterministic test executable or
+program arguments for memory checking. Space vq stops long-running checks.
+
+Backend selection is explicitly labeled in the report:
+
+  Supported platform + installed Valgrind:
+    Memcheck: full leak checks, all leak kinds, invalid memory access and
+    undefined-value origins. Detected errors return exit status 97.
+
+  macOS without supported Valgrind (including this Apple Silicon Mac):
+    C/C++ uses Apple's /usr/bin/leaks with allocation stack logging. A temporary
+    copy beside the executable is ad-hoc signed for inspection, then removed.
+    The original executable is unchanged. Source frames need debug symbols.
+    Use a Debug build without AddressSanitizer; for ASan use its own runtime
+    reports instead. leaks detects unreachable allocations at program exit;
+    it does NOT implement all Valgrind invalid-access/undefined-value checks.
+
+  Python without supported Valgrind:
+    tracemalloc reports retained allocations and peak traced memory using the
+    selected project interpreter. Retained allocations are not proof of leaks;
+    native allocations inside extensions may not be tracked.
+
+Native Valgrind does not support Apple Silicon macOS. For actual Valgrind
+Memcheck, run this config in a supported Linux environment with Valgrind
+installed and rebuild the program there. A macOS Mach-O binary cannot be
+analyzed by Linux Valgrind. No VM/container is started automatically.
+https://valgrind.org/info/platforms.html
+
+CMake executable selection and Make executable prompts use the same runner
+as debugging. Failed saves/builds abort analysis. Analysis jobs and views load
+only when requested; no background memory scan runs while editing.
+
+More: |cpp-workflow| and |python-workflow|.
+
+vim:tw=78:ts=8:ft=help:norl:

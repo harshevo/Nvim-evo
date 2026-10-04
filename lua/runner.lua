@@ -26,8 +26,19 @@ local function with_source(callback)
       vim.api.nvim_set_current_win(wins[1])
     else
       local win = state.prev_win
-      if win and vim.api.nvim_win_is_valid(win) then
+      if not win or not vim.api.nvim_win_is_valid(win) or vim.wo[win].winfixbuf then
+        win = nil
+        for _, candidate in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+          if not vim.wo[candidate].winfixbuf and vim.bo[vim.api.nvim_win_get_buf(candidate)].buftype == '' then
+            win = candidate
+            break
+          end
+        end
+      end
+      if win then
         vim.api.nvim_set_current_win(win)
+      else
+        vim.cmd 'topleft new'
       end
       vim.api.nvim_set_current_buf(bufnr)
     end
@@ -56,6 +67,11 @@ end
 
 local function cancel_build()
   state.generation = state.generation + 1
+  if state.on_build_cancel then
+    local callback = state.on_build_cancel
+    state.on_build_cancel = nil
+    callback 'Build canceled by another run/build'
+  end
   if state.build then
     local process = state.build
     state.build = nil
@@ -95,7 +111,22 @@ local function compile_command(file_abs, ext)
   local out_bin = output_path(file_abs)
   file_abs = vim.uv.fs_realpath(file_abs) or file_abs
   local standard = ext == 'c' and '-std=c17' or '-std=c++20'
-  local cmd = ('%s %s -O0 -g -pipe -Wall -Wextra %s -o %s'):format(compiler, standard, vim.fn.shellescape(file_abs), vim.fn.shellescape(out_bin))
+  local flags = standard .. ' -O0 -g -pipe -Wall -Wextra'
+  local cmd
+  if vim.fn.executable 'ccache' == 1 then
+    local object = out_bin .. '.o'
+    cmd = ('ccache %s %s -c %s -o %s && %s -g %s -o %s'):format(
+      compiler,
+      flags,
+      vim.fn.shellescape(file_abs),
+      vim.fn.shellescape(object),
+      compiler,
+      vim.fn.shellescape(object),
+      vim.fn.shellescape(out_bin)
+    )
+  else
+    cmd = ('%s %s %s -o %s'):format(compiler, flags, vim.fn.shellescape(file_abs), vim.fn.shellescape(out_bin))
+  end
   return cmd, out_bin
 end
 
@@ -117,7 +148,17 @@ local function build_cmd_for_current_file()
     end
     return cmd .. ' && exec ' .. shellescape(out_bin)
   elseif ext == 'py' then
-    return 'exec python3 ' .. shellescape(file_abs)
+    local env = require 'custom.python.environment'
+    local root = env.root(0)
+    return table.concat({
+      'exec',
+      shellescape(env.python(root)),
+      '-u',
+      shellescape(vim.fn.stdpath 'config' .. '/scripts/python_run.py'),
+      shellescape(root),
+      'file',
+      shellescape(file_abs),
+    }, ' ')
   elseif ext == 'js' then
     return 'exec node ' .. shellescape(file_abs)
   elseif ext == 'go' then
@@ -163,7 +204,7 @@ local function project_root()
   if is_cpp_file(ext) or vim.bo.filetype == 'cmake' then
     markers = { { 'CMakeLists.txt', 'Makefile', 'makefile' }, '.git' }
   elseif ext == 'py' then
-    markers = { { 'pyproject.toml', 'setup.py', 'setup.cfg' }, '.git' }
+    return require('custom.python.environment').root(0)
   elseif ext == 'go' then
     markers = { 'go.mod', '.git' }
   else
@@ -187,26 +228,6 @@ local function make_changed_flags(root)
     flags[#flags + 1] = '-W ' .. shellescape(path:sub(#root + 2))
   end
   return table.concat(flags, ' '), writes
-end
-
-local function find_cmake_build_dir(root)
-  local candidates = {
-    'out/Debug',
-    'out/Release',
-    'out/RelWithDebInfo',
-    'build',
-    'cmake-build-debug',
-    'cmake-build-release',
-  }
-
-  for _, dir in ipairs(candidates) do
-    local path = root .. '/' .. dir
-    if file_exists(path .. '/CMakeCache.txt') then
-      return dir
-    end
-  end
-
-  return nil
 end
 
 local function read_json(path)
@@ -590,22 +611,22 @@ local function project_build_cmd(check_only)
 
   if is_cpp_file(ext) or vim.bo.filetype == 'cmake' then
     if file_exists(root .. '/CMakeLists.txt') then
-      local dir = find_cmake_build_dir(root) or 'build'
-      local build_dir = root .. '/' .. dir
+      local project = require 'custom.cpp.project'
+      local build_dir = project.build_dir(root)
+      local dir = build_dir
       local query = build_dir .. '/.cmake/api/v1/query/codemodel-v2'
       if not file_exists(query) then
         vim.fn.mkdir(vim.fn.fnamemodify(query, ':h'), 'p')
         vim.fn.writefile({}, query)
       end
-      local debug_default = file_exists(build_dir .. '/CMakeCache.txt') and '' or ' -DCMAKE_BUILD_TYPE=Debug'
       local configure = ''
       if #vim.fn.glob(build_dir .. '/.cmake/api/v1/reply/codemodel-v2-*.json', false, true) == 0 or not file_exists(build_dir .. '/compile_commands.json') then
-        configure = ('cmake -S . -B %s -DCMAKE_EXPORT_COMPILE_COMMANDS=1%s && '):format(shellescape(dir), debug_default)
+        configure = project.configure_command(root, build_dir) .. ' && '
       end
       local flags, writes = make_changed_flags(root)
       for path in pairs(writes) do
         if vim.fn.fnamemodify(path, ':t') == 'CMakeLists.txt' or path:match '%.cmake$' then
-          configure = ('cmake -S . -B %s -DCMAKE_EXPORT_COMPILE_COMMANDS=1%s && '):format(shellescape(dir), debug_default)
+          configure = project.configure_command(root, build_dir) .. ' && '
           break
         end
       end
@@ -615,7 +636,17 @@ local function project_build_cmd(check_only)
           force = ' --clean-first'
         end
       end
-      return configure .. ('cmake --build %s --parallel 4'):format(shellescape(dir)) .. force,
+      local refresh = ''
+      if file_exists(build_dir .. '/build.ninja') and flags ~= '' then
+        local args = { 'python3', shellescape(vim.fn.stdpath 'config' .. '/scripts/refresh_ninja.py'), shellescape(build_dir) }
+        local paths = vim.tbl_keys(writes)
+        table.sort(paths)
+        for _, path in ipairs(paths) do
+          args[#args + 1] = shellescape(path)
+        end
+        refresh = table.concat(args, ' ') .. ' && '
+      end
+      return configure .. refresh .. ('cmake --build %s --parallel 4'):format(shellescape(dir)) .. force,
         root,
         { run_cmake = true, build_dir = build_dir, writes = writes }
     end
@@ -654,11 +685,12 @@ local function project_build_cmd(check_only)
   end
 
   if ext == 'py' then
+    local python = shellescape(require('custom.python.environment').python(root))
     if file_exists(root .. '/pyproject.toml') or file_exists(root .. '/setup.py') or file_exists(root .. '/setup.cfg') then
-      return 'python3 -m compileall -q .', root
+      return python .. ' -m compileall -q -x ' .. shellescape '(^|/)([.]venv|venv|env|[.]git|build|dist)(/|$)' .. ' .', root
     end
 
-    return ('python3 -m py_compile %s'):format(shellescape(file_abs)), root
+    return ('%s -m py_compile %s'):format(python, shellescape(file_abs)), root
   end
 
   if file_exists(root .. '/package.json') then
@@ -737,7 +769,7 @@ end
 
 run_build_to_quickfix = function(opts, run_after)
   if not save_sources() then
-    return
+    return false
   end
 
   cancel_build()
@@ -749,11 +781,11 @@ run_build_to_quickfix = function(opts, run_after)
   end
   if not cmd then
     vim.notify('No build/check command found for this file or project', vim.log.levels.ERROR)
-    return
+    return false
   end
   if run_after and not (metadata and (metadata.run_cmd or metadata.run_cmake)) then
     vim.notify('This project needs a run command in .nvim-run.json or a Makefile run target', vim.log.levels.ERROR)
-    return
+    return false
   end
 
   local generation = state.generation
@@ -764,7 +796,7 @@ run_build_to_quickfix = function(opts, run_after)
   local ok, process = pcall(vim.system, { vim.o.shell, vim.o.shellcmdflag, cmd }, { cwd = cwd, text = true, detach = true }, function(result)
     vim.schedule(function()
       if generation ~= state.generation then
-        return
+        return false
       end
       state.build = nil
       local lines = {}
@@ -775,7 +807,7 @@ run_build_to_quickfix = function(opts, run_after)
       end
       set_build_quickfix(lines, cmd, cwd, opts and opts.panel)
       local count = vim.fn.getqflist({ size = 0 }).size
-      if result.code ~= 0 then
+      if result.code ~= 0 or result.signal ~= 0 then
         if count == 0 then
           vim.fn.setqflist({}, 'r', {
             title = 'Build failed: ' .. cmd,
@@ -788,6 +820,9 @@ run_build_to_quickfix = function(opts, run_after)
         vim.fn.setqflist({}, 'a', { title = 'Check failed: ' .. cmd })
         if not (opts and opts.panel) then
           vim.notify('Build failed; executable was not run', vim.log.levels.ERROR)
+        end
+        if opts and opts.on_failure then
+          opts.on_failure(result)
         end
       else
         for path, sequence in pairs(metadata and metadata.writes or {}) do
@@ -814,7 +849,9 @@ run_build_to_quickfix = function(opts, run_after)
     state.build = process
   else
     vim.notify('Unable to start build: ' .. tostring(process), vim.log.levels.ERROR)
+    return false
   end
+  return true
 end
 
 run_cmake_target = function(metadata, root, generation, on_target)
@@ -830,10 +867,19 @@ run_cmake_target = function(metadata, root, generation, on_target)
   end
   if #targets == 0 then
     vim.notify('CMake build has no executable target', vim.log.levels.ERROR)
+    if on_target then
+      on_target(nil, root)
+    end
     return
   end
   local function launch(target)
-    if not target or generation ~= state.generation then
+    if generation ~= state.generation then
+      return
+    end
+    if not target then
+      if on_target then
+        on_target(nil, root)
+      end
       return
     end
     state.cmake_targets[root] = target.name
@@ -850,7 +896,7 @@ run_cmake_target = function(metadata, root, generation, on_target)
     selected = cmake.get_launch_target()
   end
   for _, target in ipairs(targets) do
-    if target.name == selected or #targets == 1 then
+    if not metadata.pick_target and (target.name == selected or #targets == 1) then
       launch(target)
       return
     end
@@ -935,8 +981,11 @@ local function run_built_target()
   if language == 'go' then
     default_cmd = file_exists(root .. '/go.mod') and 'go run .' or ('go run %s'):format(shellescape(file_abs))
   elseif language == 'python' then
-    local python = root .. '/.venv/bin/python'
-    default_cmd = ('%s %s'):format(executable(python) and shellescape(python) or 'python3', shellescape(file_abs))
+    local python = require('custom.python.environment').python(root)
+    default_cmd = table.concat(
+      { 'exec', shellescape(python), '-u', shellescape(vim.fn.stdpath 'config' .. '/scripts/python_run.py'), shellescape(root), 'file', shellescape(file_abs) },
+      ' '
+    )
   elseif language == 'typescript' then
     default_cmd = package_script(root, { 'start', 'dev' }) or ('npx --no-install tsx %s'):format(shellescape(file_abs))
   elseif language == 'javascript' then
@@ -1033,7 +1082,7 @@ run_command_in_terminal = function(cmd, cwd)
   vim.keymap.set('n', 'H', close_terminal_split, { buffer = bufnr, silent = true, desc = 'Close run output' })
   vim.keymap.set('n', 'K', close_terminal_split, { buffer = bufnr, silent = true, desc = 'Close run output' })
   vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', { buffer = bufnr, silent = true, desc = 'Leave terminal input' })
-  vim.keymap.set({ 'n', 't' }, '<F5>', function()
+  vim.keymap.set('n', '<leader>R', function()
     with_source(function()
       vim.cmd 'RunNow'
     end)
@@ -1041,6 +1090,9 @@ run_command_in_terminal = function(cmd, cwd)
   vim.keymap.set('n', '<leader>r', function()
     with_source(run_built_target)
   end, { buffer = bufnr, silent = true, desc = 'Rebuild and run project' })
+  if state.source_buf and vim.bo[state.source_buf].filetype == 'python' then
+    require('custom.core.python_ide').map(bufnr)
+  end
   vim.cmd 'startinsert'
 end
 
@@ -1067,11 +1119,21 @@ vim.api.nvim_create_user_command('RunNow', function(opts)
 end, { nargs = '*', complete = 'file', desc = 'Save, compile and run current file; optional shell arguments' })
 vim.api.nvim_create_user_command('BuildNow', function(opts)
   with_source(function()
-    run_build_to_quickfix(opts)
+    if vim.bo.filetype == 'python' and opts.args == '' then
+      require('custom.python.check').explicit 'project'
+    else
+      run_build_to_quickfix(opts)
+    end
   end)
 end, { nargs = '*', complete = 'shellcmd', desc = 'Save and build project asynchronously' })
 vim.api.nvim_create_user_command('BuildToggle', function()
-  with_source(toggle_build_quickfix)
+  with_source(function()
+    if vim.bo.filetype == 'python' then
+      require('custom.python.check').toggle()
+    else
+      toggle_build_quickfix()
+    end
+  end)
 end, {})
 vim.api.nvim_create_user_command('RunBuild', function()
   with_source(run_built_target)
@@ -1101,7 +1163,7 @@ vim.api.nvim_create_autocmd('VimLeavePre', {
   end,
 })
 
-vim.keymap.set('n', '<F5>', '<cmd>RunNow<CR>', { silent = true, desc = 'Save, compile and run file' })
+vim.keymap.set('n', '<leader>R', '<cmd>RunNow<CR>', { silent = true, desc = 'Save, compile and run file' })
 vim.keymap.set('n', '<leader>b', '<cmd>BuildToggle<CR>', { silent = true, nowait = true, desc = 'Toggle error pane and check in background' })
 vim.keymap.set('n', '<leader>r', '<cmd>RunBuild<CR>', { silent = true, desc = 'Rebuild and run project' })
 vim.keymap.set('n', '<leader>B', '<cmd>BuildNow<CR>', { silent = true, desc = 'Force full project build/check' })
@@ -1109,13 +1171,102 @@ vim.keymap.set('n', '<leader>co', '<cmd>copen<CR>', { silent = true, desc = 'Ope
 vim.keymap.set('n', '<leader>cn', '<cmd>cnext<CR>', { silent = true, desc = 'Next quickfix item' })
 vim.keymap.set('n', '<leader>cp', '<cmd>cprev<CR>', { silent = true, desc = 'Previous quickfix item' })
 
+local function build_executable(on_ready, on_failure)
+  return with_source(function()
+    local function fail(message)
+      state.on_build_cancel = nil
+      if on_failure then
+        on_failure(message)
+      end
+    end
+    local started = run_build_to_quickfix {
+      panel = true,
+      on_success = function(metadata, cwd, generation)
+        local function ready(path)
+          if generation ~= state.generation then
+            return
+          end
+          state.on_build_cancel = nil
+          if path then
+            on_ready(path, cwd, metadata)
+          else
+            fail 'No executable selected or available'
+          end
+        end
+        if metadata.run_cmake then
+          run_cmake_target(metadata, cwd, generation, ready)
+        elseif metadata.executable then
+          ready(metadata.executable)
+        else
+          vim.ui.input({ prompt = 'Executable to inspect: ', default = cwd .. '/', completion = 'file' }, function(path)
+            if generation ~= state.generation then
+              return
+            end
+            if path and vim.fn.executable(path) == 1 then
+              ready(path)
+            else
+              fail 'No executable selected'
+            end
+          end)
+        end
+      end,
+      on_failure = function()
+        fail 'Build failed; open compiler errors with Space b'
+      end,
+    }
+    if started then
+      state.on_build_cancel = fail
+    else
+      fail 'Unable to save/build this source'
+    end
+    return started
+  end)
+end
+
 return {
+  build_executable = build_executable,
+  run_terminal = function(command, cwd, buf)
+    state.source_buf = buf or source_buffer()
+    cancel_build()
+    run_command_in_terminal(command, cwd)
+  end,
   save_sources = save_sources,
+  source_buffer = source_buffer,
+  stop_build = cancel_build,
+  build = function(callback)
+    return with_source(function()
+      return run_build_to_quickfix {
+        on_success = function(metadata, cwd, generation)
+          callback(true, cwd, generation, metadata)
+        end,
+        on_failure = function(result)
+          callback(false, nil, nil, nil, result)
+        end,
+      }
+    end)
+  end,
+  select_target = function()
+    with_source(function()
+      run_build_to_quickfix {
+        on_success = function(metadata, cwd, generation)
+          if not metadata.run_cmake then
+            vim.notify('Executable target selection requires CMake', vim.log.levels.WARN)
+            return
+          end
+          metadata.pick_target = true
+          run_cmake_target(metadata, cwd, generation, function() end)
+        end,
+      }
+    end)
+  end,
   debug = function()
     with_source(function()
       run_build_to_quickfix {
         on_success = function(metadata, cwd, generation)
           local function launch(path)
+            if not path then
+              return
+            end
             require('dap').run {
               name = 'C/C++ debug',
               type = 'lldb',

@@ -1,0 +1,192 @@
+*python-workflow.txt*       Python editing, environments, running and debugging
+
+PYTHON WORKFLOW                                             *python-workflow*
+
+Leader is Space. Open this guide with :PyHelp.
+Python uses the shared IDE shortcuts with buffer-local commands, so C/C++
+keeps its own test runner, analysis, presets and project sessions.
+
+ENVIRONMENTS
+  Space pe      Choose interpreter/environment
+  Space pE      Show project root, Python and Ruff paths
+  :PyEnv /path/to/python   Select an interpreter for this project
+  :PyEnv /path/to/venv     Select a virtual environment directory
+  :PyEnv auto              Return to automatic environment detection
+  Space pv / :PyVenv       Create .venv with uv; existing environments survive
+  Space pS / :PySync       Run uv sync for the current pyproject.toml project
+  :PyRestart               Refresh Pyright's selected interpreter
+
+  A saved selection takes priority. Otherwise detect .venv, venv or env in
+  the project, then active VIRTUAL_ENV/CONDA_PREFIX, then Python in PATH.
+  uv projects use their .venv. Activate Poetry/Conda environments before
+  opening Neovim, or select their Python executable with Space pe.
+  Interpreter paths are retained without resolving the venv executable's
+  symlink, so packages and Python versions match the intended environment.
+  The selection persists per project and drives runs, Pyright, pytest,
+  documentation and debuggee processes.
+
+  Ruff and debugpy are installed in Neovim's isolated python-tools environment.
+  Project Ruff takes priority for formatting/checks; the live Ruff server uses
+  the editor tool. Project lint configuration is respected by both.
+  pytest must exist in the selected Python environment. :PyTestInstall installs
+  it there using uv; package installation happens when that command is invoked.
+  :PyVenv and :PySync also change the project environment only when requested.
+  Dependencies such as FastAPI, Django and uvicorn belong in your project env.
+
+FORMAT AND COMPLETION
+  Saving sorts imports and formats with Ruff. Indentation uses four spaces.
+  pyproject.toml, ruff.toml and .ruff.toml retain project formatter/linter rules.
+  Space cf      Format asynchronously
+  Space mp      Format file or selected range
+  :KickstartFormatToggle  Toggle formatting on save
+  Ctrl-Space    Request completion
+  Ctrl-n/p      Select completion
+  Enter         Accept completion
+  Tab/Shift-Tab Navigate completion/snippet fields
+  K             Signature, type and docstring; K again focuses the popup
+  gK            Signature help at a call
+  Ctrl-k        Signature help while typing
+
+  Pyright provides completion, auto-import suggestions, signatures and types.
+  Ruff handles linting, code actions and import organization. Hover comes from
+  Pyright to avoid competing popups. Project Pyright settings override default
+  standard type checking. Automatic analysis covers open files; full project
+  type checking is available on demand without slowing every edit.
+
+NAVIGATION
+  gd / gD       Definition / declaration (when supported by the server)
+  gr / gT       References / type definition
+  Ctrl-o        Return after a jump
+  Space cr      Rename across the project
+  Space ca      Code action, import organization or suggested fix
+  Space cs      Search symbols in this file
+  Space cw      Search project symbols
+  Space cI/cO   Show incoming / outgoing calls
+  ]d / [d       Next/previous diagnostic
+  Space q       Detailed diagnostic at cursor
+  Space fd      Search diagnostics
+
+RUN AND CHECK
+  Space R       Save and run current Python file
+  :RunNow args  Run current file with optional shell arguments
+  Space r       Save and run project command (current file by default)
+  :RunStop      Stop active run process and close its output
+  :PyRunModule package.module args  Run a module from project root
+  Space pr      Open Python REPL in selected environment
+  :PyServe module:app args  Start uvicorn development server with --reload
+
+  Runs save modified source buffers and replace previous output. Save failures
+  abort execution. Space R uses the file's directory; project/module/REPL commands
+  use the project root. Output is unbuffered and interactive stdin works.
+  In run output, Esc leaves terminal input; H closes the output. Space R reruns
+  the source; Space r reruns the project. Module/test/debug entry points read
+  project source afresh to avoid stale same-second bytecode caches. Third-party
+  dependencies retain normal Python caching. Custom shell commands use their
+  own Python and caching behavior.
+
+  Optional .nvim-run.json at project root:
+>
+  {"run": {"python": "./.venv/bin/python -m package.module"}}
+<
+  Space b       Instantly toggle Python error split; check in background
+  Space B       Check whole project with Ruff and Pyright
+  :PyCheck      Recheck current file and open error split
+  :PyCheck project   Recheck whole project
+  :PyCheckStop       Cancel pending/background checks
+  Enter / o     Jump from error split to source
+  q / Esc       Hide error split
+  Space cn/cp   Next/previous quickfix finding
+
+  Current-file checks combine Ruff, selected-interpreter syntax parsing and
+  current Pyright diagnostics. Whole-project checks run Ruff and Pyright CLI.
+  Closing the pane keeps it hidden when results arrive. Unchanged current-file
+  results are reused for two seconds; explicit checks always rerun. Syntax
+  checking does not execute your program or generate bytecode files.
+
+TESTS
+  Space tt      Run all pytest tests
+  Space tF      Run current test file
+  Space tn      Run nearest collected test, including parameterized variants
+  Space ts      Discover and select a specific test
+  Space tl      Rerun last test selection
+  Space tf      Rerun failed tests; no failed tests means no tests are rerun
+  Space to      Toggle test output immediately
+  Space tq      Stop tests or discovery and cancel pending test selection
+  Enter / o     Jump from traceback/failure summary to assertion source
+  q / Esc       Hide test output
+  :PyTestInstall  Install pytest in the selected environment if missing
+
+  Tests use the actual project interpreter, pytest configuration and plugins.
+  Discovery supports test functions, classes and parameterized node IDs.
+  Failed summaries retain exact source locations. Last selection lasts for
+  this Neovim session; failed-test state is pytest's per-project cache.
+  A background test run does not reopen an output pane you closed.
+
+ANALYSIS
+  Space cl      Ruff analysis of the project in an output split
+  Space cT      Pyright type checking of the whole project
+  Space ao      Toggle Ruff analysis output
+  Space aq      Put Ruff findings into quickfix
+  Space as      Stop Ruff/type analysis
+  :PyTypeOutput Toggle type-check output
+  Enter / o     Jump to an analysis finding
+
+  Analysis respects project configuration and does not rewrite source files.
+  Use Space ca for individual fixes; import sorting/formatting happen on save.
+
+DEBUG
+  Space dc      Save and debug current file; continues an active session
+  Space db      Toggle breakpoint
+  Space do/di       Step over / into
+  Space dO      Step out
+  Space dt      Conditional breakpoint
+  Space dn      Run to cursor
+  Space ds/df   Inspect scopes / frames
+  Space dB      List breakpoints
+  Space dr      Toggle debug REPL
+  Space du      Toggle scopes, watches, stack, breakpoints, REPL and console
+  Space de      Evaluate cursor expression or visual selection
+  Space dq      Terminate debugger
+  :PyDebug args          Debug file with arguments
+  :PyDebugModule package.module args  Debug a module
+  :PyDebugModule pytest test_file.py::test_name  Debug a test
+  :PyDebugAttach host:port  Attach to an existing debugpy listener
+
+  debugpy's adapter runs in the editor tool environment; the debuggee uses your
+  selected project Python without installing debugpy into that environment.
+  Default debugging focuses on your code (justMyCode). An attach target must
+  already expose a debugpy listener; the default address is 127.0.0.1:5678.
+  Debug modules provide framework entry points such as uvicorn, django and
+  pytest when those packages are installed in the selected environment.
+
+DOCUMENTATION AND SESSIONS
+  Space cm      Offline runtime documentation for symbol under cursor
+  :PyDoc module.symbol   Offline documentation for a named API
+  Space cR      Search official Python documentation in the browser
+  Space ps/pl   Save / restore files, splits, folds, directory and interpreter
+  Space pp      Searchable Python command palette
+  Space fk      Search every configured shortcut
+  Pause after Space to see the shortcut menu.
+
+  K reads source signatures/docstrings through Pyright. Offline documentation
+  uses pydoc with your selected environment and resolves imported aliases.
+  pydoc may import a library, so its module initialization runs on explicit
+  documentation requests. Runtime docs depend on installed libraries; official
+  Python documentation covers the standard library. Sessions omit running
+  terminals/task output and do not restart servers or debugger processes.
+
+PERFORMANCE
+  Ruff runs natively; formatting is bounded to 500 ms on save. Pyright analyzes
+  open files automatically and debounces updates; whole-project checks run only
+  when requested. Environments and commands require no shell processes during
+  startup. Debugger, test discovery, documentation, analysis, formatting and
+  command palette load on demand. Large files (1 MiB or 20,000 lines) skip LSP,
+  Treesitter, completion and automatic formatting.
+  Project environments, caches, build and dist directories are excluded from
+  automatic type analysis and common generated folders stay out of file search.
+
+
+See :help debug-workflow (Space dh) for all Space-based stepping, memory,
+assembly and memory-check sidebar shortcuts. Space vg toggles the right pane.
+
+vim:tw=78:ts=8:ft=help:norl:

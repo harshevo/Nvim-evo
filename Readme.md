@@ -28,7 +28,7 @@ Useful language/build tools:
 
 - C/C++: `clang`, `clang++`, `gcc`, `g++`, `clangd`, `cmake`, `ctest`, `lldb`.
 - JavaScript/TypeScript: `node`, `npm`, `npx`.
-- Python: `python3`.
+- Python: `python3`, `uv`, project `pytest`; editor Ruff/debugpy use an isolated environment.
 - Go: `go`.
 - Assembly runner: `nasm` and `ld`.
 - tmux navigation: `tmux`, only needed if you use the tmux keymaps.
@@ -38,7 +38,7 @@ Useful language/build tools:
 Run `:MasonToolsInstall` to install the configured language tools. Installation checks are disabled during startup so opening a file stays fast. Configured tools include:
 
 - LSPs: `bashls`, `lua_ls`, `jsonls`, `yamlls`, `clangd`, `vtsls`, `pyright`, `dockerls`, `tailwindcss-language-server`.
-- Formatters/debug tools: `stylua`, `prettier`, `goimports`, `isort`, `black`, `clang-format`, `delve`.
+- Formatters/debug tools: `stylua`, `prettier`, `goimports`, `clang-format`, `delve`.
 
 If Mason misses anything, open Neovim and run:
 
@@ -52,7 +52,7 @@ If Mason misses anything, open Neovim and run:
 ### macOS
 
 ```sh
-brew install neovim git ripgrep fd make cmake llvm node python go trash tmux nasm
+brew install neovim git ripgrep fd make cmake ninja ccache llvm node python uv go trash tmux nasm
 ```
 
 Notes:
@@ -159,7 +159,7 @@ Leader is `<Space>`.
 - `<leader>b`: instantly toggle the error split; save/check in the background.
 - `<leader>B`: full project build; Enter jumps to an error, q closes the split.
 - `<leader>r`: save modified buffers, rebuild, then run the project.
-- `<F5>`: save, compile and run the current file.
+- `<Space>R`: save, compile and run the current file.
 - `<leader>co`: open quickfix.
 - `<leader>cn` / `<leader>cp`: next/previous quickfix item.
 - `<S-l>` / `<S-h>`: next/previous buffer.
@@ -180,7 +180,7 @@ CMake keymaps:
 
 The custom runner supports:
 
-- Python files with `python3`.
+- Python files with the selected project interpreter and fresh project imports.
 - C/C++ single files with `gcc`, `g++`, `clang`, or `clang++`.
 - CMake projects with `cmake`.
 - Make projects with `make`.
@@ -188,7 +188,7 @@ The custom runner supports:
 - JS/TS projects with `npm`, `node`, `npx tsc`, and a locally installed `tsx` (no automatic package downloads when running).
 - Linux ELF32 assembly files with `nasm` and `ld`. On macOS, use a project Makefile with the appropriate assembler/linker.
 
-`F5` runs the current file; `<Space>r` rebuilds and runs the project. Builds and runs save all named modified source buffers, including edited headers. A failed save or build aborts the run. Single-file C/C++ uses C17/C++20 with `-O0 -g` for quick builds and debugging; project builds retain their own compiler flags.
+`Space R` runs the current file; `<Space>r` rebuilds and runs the project. Builds and runs save all named modified source buffers, including edited headers. A failed save or build aborts the run. Single-file C/C++ uses C17/C++20 with `-O0 -g` for quick builds and debugging; project builds retain their own compiler flags.
 
 Each source path has its own executable under Neovim's cache directory. Each run replaces the previous terminal job and output, so waiting programs cannot consume the next run command. `Esc` leaves terminal input mode; `H` (or `K`) in terminal normal mode closes output. Capital `H` remains available as program input. `:RunStop` stops the active runner build and closes output. `:RunNow arg1 "arg with spaces"` passes optional shell arguments without an input prompt. File runs use the source directory; project runs use the detected project root.
 
@@ -227,7 +227,7 @@ nvim --headless '+lua dofile("tests/cmake.lua")'
 - `<Space>cs`: file symbols; `<Space>ci`: parameter/type hints.
 - `<Space>cm`: installed C/POSIX manual; `<Space>fm`: cached asynchronous manual search.
 - `<Space>cR`: online cppreference search. Third-party docs depend on installed headers/manuals.
-- `F6`: build/debug or continue; `F9`: breakpoint; `F10`/`F11`/`Shift-F11`: step over/into/out.
+- `Space dc`: build/debug or continue; `Space db`: breakpoint; `Space do`/`Space di`/`Space dO`: step over/into/out.
 - `<Space>ds`, `<Space>df`, `<Space>dr`, `<Space>dq`: debug variables, stack, REPL and stop.
 - `<Space>x`: close buffer (the `<Space>c` prefix is reserved for C/C++ commands).
 
@@ -240,9 +240,83 @@ nvim --headless '+lua dofile("tests/cpp.lua")'
 nvim --headless '+lua dofile("tests/debug.lua")'
 ```
 
+## IDE Commands
+
+Pause after `Space` for the shortcut menu. `Space pp` opens the C/C++ command palette and `Space fk` searches all mappings. `:CppHelp` documents the full workflow.
+
+| Keys | Action |
+| --- | --- |
+| `Space mP` / `Space mt` | Choose, configure and activate CMake preset |
+| `Space mg` / `Space ml` | Configure active preset / select executable target |
+| `Space mI` / `Space mC` | Create local presets / compiler cache statistics |
+| `Space tt` / `Space ts` | Build and run all CTest tests / select test |
+| `Space tl` / `Space tf` | Rerun last selection / failed tests |
+| `Space to` / `Space tq` | Toggle test output / stop tests |
+| `Space cl` | Background clang-tidy analysis |
+| `Space ao` / `Space aq` / `Space as` | Analysis output / quickfix / stop |
+| `Space du` / `Space de` | Debugger panels / evaluate expression |
+| `Space cw` / `Space cI` / `Space cO` | Project symbols / callers / callees |
+| `Space ps` / `Space pl` | Save / restore project session and preset |
+
+New CMake builds prefer Ninja and use ccache compiler launchers. Standalone C/C++ compiles a cached object and performs a fresh link. Existing generators are preserved. Local Debug/Release/ASan/UBSan presets are created in `CMakeUserPresets.json` when requested; keep that file out of version control. Preset selection persists per project and supplies build/run/test/debug commands and clangd with the same build directory.
+
+Tests use CTest registrations (`include(CTest)`, `add_test`, or framework discovery). Builds complete before tests start; failures and analysis findings support source jumps. Analysis respects `.clang-tidy` and project compiler flags. Sessions live under Neovim's state directory. Creating local presets appends generated-directory indexing exclusions to `.clangd` without replacing project settings.
+
+Extra integration checks:
+
+```sh
+nvim --headless '+lua dofile("tests/ide.lua")'
+nvim --headless '+lua dofile("tests/analysis.lua")'
+CPP_TEST_CMAKE=1 nvim --headless '+lua dofile("tests/debug.lua")'
+```
+
 ## Notes
 
 - `nvim-tree` itself is a Neovim plugin, not a CLI. The external CLI it needs here is `trash`.
 - Python and Node providers are disabled in `init.lua` because this config does not currently need provider-based plugins.
-- DAP and DBUI keymaps exist in `lua/custom/core/keymaps.lua`, but the matching plugins are not currently included in this repo. Add `nvim-dap` / `vim-dadbod-ui` before relying on those keymaps.
-- C/C++ debug config references `codelldb`; install the VS Code LLDB extension or adjust `lua/custom/utils/codelldb.lua` if you wire DAP back in.
+- nvim-dap and debugger panels load on demand. C/C++ uses LLDB; Python uses debugpy. DBUI shortcuts require a separate `vim-dadbod-ui` installation.
+
+## Python Development
+
+`:PyHelp` opens the complete Python guide. Python buffers, run terminals and task panes use the same command/test/analysis/session shortcuts as C/C++, with Python-specific actions. `Space pp` opens the searchable Python command palette.
+
+| Keys | Action |
+| --- | --- |
+| `Space pe` / `Space pE` | Select / inspect Python environment |
+| `Space pv` / `Space pS` | Create .venv / synchronize uv dependencies |
+| `Space R` / `Space r` | Save and run file / project command |
+| `Space b` / `Space B` | Toggle file errors / check whole project |
+| `K` / `gK` | Signature, types and docstring / call signature |
+| `Space cf` / `Space ca` | Format / code action |
+| `Space tt` / `Space tF` / `Space tn` | All / file / nearest pytest tests |
+| `Space ts` / `Space tl` / `Space tf` | Select / last / failed tests |
+| `Space to` / `Space tq` | Toggle test output / stop tests |
+| `Space cl` / `Space cT` | Project Ruff analysis / type checking |
+| `Space dc` / `Space du` | Debug or continue / toggle debugger panels |
+| `Space cm` / `Space cR` | Offline API docs / official online docs |
+| `Space pr` / `Space ps` / `Space pl` | REPL / save / restore session |
+
+Python formatting uses Ruff import sorting and formatting, retaining project configuration. Pyright supplies completion, navigation, signatures, auto-import suggestions and standard type checking. Automatic type analysis covers open files; workspace checks run on demand. Four-space indentation and large-file safeguards apply.
+
+Interpreter selection persists per project. Detection prefers project `.venv`/`venv`/`env`, then active virtualenv/Conda, then PATH. Select any Poetry/Conda/custom interpreter with `:PyEnv /path/to/python`. Runs, Pyright, pytest, pydoc and debuggee processes share this selection. Built-in file/module runs and tests bypass stale project bytecode after rapid edits; dependencies retain normal caching. Custom `.nvim-run.json` commands control their own interpreter and caching.
+
+Install editor-only tooling once on Linux/macOS (already installed on this machine):
+
+```sh
+uv venv --python python3 ~/.local/share/nvim/python-tools
+uv pip install --python ~/.local/share/nvim/python-tools/bin/python ruff debugpy
+```
+
+Install pytest in the selected project environment with `:PyTestInstall` if needed. `:PyVenv` creates a local environment; `:PySync` runs uv sync. No dependency installation runs during file opening. The debugger adapter works without adding debugpy to each project environment.
+
+`:PyRunModule package.module args`, `:PyDebugModule pytest test_file.py::test_name`, `:PyServe main:app`, and `:PyDebugAttach host:port` cover module/framework runs, test debugging, uvicorn development servers and existing debugpy listeners. Framework packages must exist in the selected environment. `:PyDoc module.symbol` uses offline pydoc; explicitly requesting runtime docs may import the library.
+
+Python integration checks (run from this directory):
+
+```sh
+nvim --headless '+lua dofile("tests/python.lua")'
+nvim --headless '+lua dofile("tests/python_debug.lua")'
+```
+
+See :help debug-workflow (Space dh) for all Space-based stepping, memory,
+assembly and memory-check sidebar shortcuts. Space vg toggles the right pane.

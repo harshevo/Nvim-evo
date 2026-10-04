@@ -9,6 +9,16 @@ return {
 
     conform.setup {
       formatters = {
+        ruff_format = {
+          command = function(_, ctx)
+            return require('custom.python.environment').tool('ruff', require('custom.python.environment').root(ctx.buf))
+          end,
+        },
+        ruff_organize_imports = {
+          command = function(_, ctx)
+            return require('custom.python.environment').tool('ruff', require('custom.python.environment').root(ctx.buf))
+          end,
+        },
         ['clang-format'] = {
           prepend_args = { '--style=file:' .. vim.fn.stdpath 'config' .. '/clang-format.yaml' },
         },
@@ -25,7 +35,7 @@ return {
         markdown = { 'prettier' },
         go = { 'goimports', 'gofmt' },
         lua = { 'stylua' },
-        python = { 'isort', 'black' },
+        python = { 'ruff_organize_imports', 'ruff_format' },
         c = { 'clang-format' },
         cpp = { 'clang-format' },
       },

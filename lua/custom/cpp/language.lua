@@ -1,6 +1,10 @@
 local M = {}
 
 local function database(root)
+  local selected = require('custom.cpp.project').selected(root)
+  if selected and vim.uv.fs_stat(selected.build_dir .. '/compile_commands.json') then
+    return selected.build_dir
+  end
   for _, dir in ipairs {
     '',
     'out/Debug',
@@ -73,6 +77,11 @@ function M.attach(bufnr)
   map('<leader>ci', function()
     vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = bufnr }, { bufnr = bufnr })
   end, 'Toggle parameter/type hints')
+  map('<leader>cw', function()
+    require('telescope.builtin').lsp_dynamic_workspace_symbols()
+  end, 'Search project symbols')
+  map('<leader>cI', vim.lsp.buf.incoming_calls, 'Show callers')
+  map('<leader>cO', vim.lsp.buf.outgoing_calls, 'Show callees')
   map('gi', vim.lsp.buf.implementation, 'Go to implementation')
   map('<leader>cs', function()
     require('telescope.builtin').lsp_document_symbols()
@@ -104,6 +113,13 @@ function M.restart()
   vim.lsp.enable('clangd', false)
   vim.defer_fn(function()
     vim.lsp.enable 'clangd'
+    if vim.v.vim_did_enter == 0 then
+      for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].buftype == '' then
+          vim.api.nvim_exec_autocmds('FileType', { group = 'nvim.lsp.enable', buffer = buf })
+        end
+      end
+    end
   end, 100)
 end
 

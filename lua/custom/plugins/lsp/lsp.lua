@@ -82,6 +82,7 @@ return {
             '--header-insertion=iwyu',
             '--completion-style=detailed',
             '--background-index',
+            '--background-index-priority=background',
             '-j=2',
             '--pch-storage=memory',
             '--log=error',
@@ -99,7 +100,32 @@ return {
         },
 
         vtsls = true,
-        pyright = true,
+        pyright = {
+          root_markers = { { 'pyproject.toml', 'pyrightconfig.json', 'pytest.ini', 'setup.py', 'setup.cfg', 'Pipfile', 'requirements.txt', '.venv' }, '.git' },
+          settings = {
+            pyright = { disableOrganizeImports = true },
+            python = {
+              analysis = {
+                autoSearchPaths = true,
+                autoImportCompletions = true,
+                useLibraryCodeForTypes = true,
+                diagnosticMode = 'openFilesOnly',
+                typeCheckingMode = 'standard',
+                exclude = { '**/.venv', '**/venv', '**/env', '**/__pycache__', '**/.git', '**/build', '**/dist', '**/.mypy_cache', '**/.pytest_cache' },
+              },
+            },
+          },
+          before_init = function(_, config)
+            config.settings.python.pythonPath = require('custom.python.environment').python(config.root_dir)
+          end,
+        },
+        ruff = {
+          cmd = { vim.fn.stdpath 'data' .. '/python-tools/bin/ruff', 'server' },
+          filetypes = { 'python' },
+          root_markers = { { 'pyproject.toml', 'ruff.toml', '.ruff.toml', 'setup.py', 'setup.cfg', 'requirements.txt', '.venv' }, '.git' },
+          init_options = { settings = { logLevel = 'error' } },
+          manual_install = true,
+        },
         dockerls = true,
       }
 
@@ -123,8 +149,6 @@ return {
         'tailwindcss-language-server',
         'prettier',
         'goimports',
-        'isort',
-        'black',
         'clang-format',
       }
       vim.list_extend(ensure_installed, servers_to_install)
@@ -144,7 +168,7 @@ return {
         end
 
         -- Skip manual_install servers whose binary isn't on $PATH yet
-        if cfg_table.manual_install and vim.fn.executable(name) == 0 then
+        if cfg_table.manual_install and vim.fn.executable((cfg_table.cmd or {})[1] or name) == 0 then
           goto continue
         end
 
@@ -211,6 +235,10 @@ return {
           end
 
           vim.opt_local.omnifunc = 'v:lua.vim.lsp.omnifunc'
+          if client.name == 'ruff' then
+            client.server_capabilities.hoverProvider = false
+            return
+          end
           -- Defer the telescope require until the keymap is actually pressed,
           -- so opening a code file doesn't drag telescope into startup.
           vim.keymap.set('n', 'gd', function()
@@ -224,6 +252,8 @@ return {
           vim.keymap.set('n', 'K', function()
             if client.name == 'clangd' then
               require('custom.cpp.docs').hover()
+            elseif client.name == 'pyright' then
+              require('custom.python.docs').hover()
             else
               vim.lsp.buf.hover { border = 'single', max_width = 100 }
             end

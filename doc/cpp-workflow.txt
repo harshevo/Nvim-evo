@@ -28,7 +28,7 @@ CHECK AND RUN
   Space cn/cp   Next/previous compiler error
   ]d / [d       Next/previous language-server diagnostic
   Space q       Detailed diagnostic at the cursor
-  F5            Save, compile and run this file
+  Space R       Save, compile and run this file
   Space r       Save, rebuild and run the project
   :RunStop      Stop runner build/program and close output
 
@@ -38,10 +38,10 @@ CHECK AND RUN
   unchanged results within two seconds does not start another check.
 
   Standalone compilation uses C17/C++20, -O0 -g, -Wall and -Wextra. Failed saves
-  or builds never launch an old executable. F5 runs one translation unit; use
+  or builds never launch an old executable. Space R runs one translation unit; use
   Space r for a project with multiple source files. Use :RunNow arguments for
   single-file command-line arguments. Terminal input works normally; Esc then
-  H closes the runner output. F5 from output saves/rebuilds the source again.
+  H closes the runner output. Space R from output saves/rebuilds the source again.
 
 COMPLETION AND NAVIGATION
   K             Signature, types and available documentation; K again focuses
@@ -81,17 +81,17 @@ DOCUMENTATION
   installed headers/manuals; cppreference covers the standard C/C++ library.
 
 DEBUG
-  F6 / Space dc Save, rebuild and debug; F6 continues an active session
-  F9            Toggle source breakpoint
-  F10           Step over
-  F11           Step into
-  Shift-F11     Step out
+  Space dc      Save, rebuild and debug; continues an active session
+  Space db      Toggle source breakpoint
+  Space do      Step over
+  Space di      Step into
+  Space dO      Step out
   Space ds      Inspect local variables/scopes
   Space df      Inspect stack frames
-  Space db      List breakpoints
+  Space dB      List breakpoints
   Space dt      Conditional breakpoint
   Space dn      Run to cursor
-  Alt-k         Inspect expression under cursor
+  Space de      Inspect expression under cursor
   Space dr      Toggle debugger REPL (expressions and debugger commands)
   Space dq      Terminate debug session
   :CppDebug     Save, rebuild and launch LLDB
@@ -102,12 +102,96 @@ DEBUG
   if breakpoints are unavailable. CMake targets are selected automatically or
   through a picker. Make projects prompt for the executable after building.
 
+PROJECT COMMANDS AND SHORTCUTS
+  Pause after Space to see available shortcuts (WhichKey).
+  Space pp      C/C++ command palette
+  Space fk      Search all configured shortcuts
+  Space ps      Save project session (files, tabs, splits, folds and directory)
+  Space pl      Restore project session, including saved build preset
+
+BUILD PRESETS AND CACHE
+  Space mP/mt   Choose and configure a CMake preset
+  Space mg      Configure the current preset (choose one if none is active)
+  Space ml      Build and select the executable target
+  Space mI      Add local Debug, Release, ASan and UBSan presets
+  Space mC      Show compiler cache statistics
+  :CppPreset name  Configure and activate a named preset
+
+  If a CMake project has no presets, choosing one creates CMakeUserPresets.json
+  with nvim-debug, nvim-release, nvim-asan and nvim-ubsan. Existing project
+  presets are available in the same picker; existing user entries are preserved.
+  Keep CMakeUserPresets.json out of version control. Selected presets persist
+  per project and drive build/run/test/debug commands and clangd's database.
+  Configure first, then Space r builds and runs the chosen executable.
+
+  New builds prefer Ninja. Existing build generators are preserved. CMake
+  compiler launchers and standalone compilation use ccache when installed;
+  linking is always fresh. Presets control their own compiler launchers. For
+  builds without a preset, "ccache": false in .nvim-run.json disables launchers.
+  Build caching accelerates repeated compilation; initial compilation and
+  linking still take their normal time.
+
+  ASan finds memory errors; UBSan finds undefined behavior. Select the preset
+  and run/test normally. Release uses optimization and may limit debugging.
+  CMake presets require an existing CMakeLists.txt. Make projects keep their
+  own build flags and can opt into ccache in their Makefile.
+
+TESTS
+  Space tt      Build and run all registered CTest tests
+  Space ts      Select a test from the discovered list
+  Space tl      Rerun the last selection
+  Space tf      Rerun failed tests
+  Space to      Toggle test output immediately
+  Space tq      Stop the test build/process
+  Enter / o     Jump from output to a file:line failure or test registration
+  q / Esc       Hide output; a finishing job does not reopen the pane
+
+  Register tests with include(CTest)/enable_testing() and add_test() in CMake.
+  GoogleTest/Catch2 projects can use their CMake test discovery functions;
+  any test registered with CTest is supported. Tests build before running,
+  use up to four parallel workers and show failed test output. Compiler errors
+  go to quickfix; test errors go to the separate output pane.
+
+ANALYSIS
+  Space cl      Run clang-tidy on the current saved file in the background
+  Space ao      Toggle analysis output
+  Space aq      Put findings into quickfix
+  Space as      Stop analysis
+  Enter / o     Jump to the selected finding
+
+  Project .clang-tidy checks are respected. Otherwise use clang-analyzer,
+  bugprone and performance checks. CMake analysis uses the selected compilation
+  database; standalone files use C17/C++20. Build the project first to create
+  its compilation database. Analysis does not rewrite source files.
+
+MORE NAVIGATION AND DEBUGGING
+  Space cw      Search symbols across the project
+  Space cI      Show incoming calls (callers)
+  Space cO      Show outgoing calls (callees)
+  Space du      Toggle the full debugger layout
+  Space de      Evaluate cursor expression (or visual selection)
+
+  Debug panels include scopes, watches, threads/stack, breakpoints, REPL and
+  console. Enter expands variables, e edits a value, o opens a stack frame.
+  In watches, enter insert mode and type an expression to add it. Panels load
+  only when requested and can stay closed while debugging.
+
 PERFORMANCE
+  Generated build/out directories skip background indexing in .clangd when
+  creating local presets. :CppIndexConfig adds those exclusions explicitly
+  while preserving existing project configuration. Background indexing has
+  low OS priority and two workers.
+
   Diagnostics wait until you leave insert mode; inline text shows errors only,
   with warnings also marked in the gutter and error list. Indexing is limited
   to two clangd workers. Completion, formatting, debugger and manual search
   load on demand. Large files (1 MiB or 20,000 lines) skip expensive features.
 
+  Space D deletes without changing registers; Space d is the debug prefix.
   Space x closes the current buffer. Space c is reserved for C/C++ commands.
+
+
+See :help debug-workflow (Space dh) for all Space-based stepping, memory,
+assembly and memory-check sidebar shortcuts. Space vg toggles the right pane.
 
 vim:tw=78:ts=8:ft=help:norl:
