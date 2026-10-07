@@ -110,7 +110,7 @@ local function compile_command(file_abs, ext)
   end
   local out_bin = output_path(file_abs)
   file_abs = vim.uv.fs_realpath(file_abs) or file_abs
-  local standard = ext == 'c' and '-std=c17' or '-std=c++20'
+  local standard = ext == 'c' and '-std=c17' or '-std=c++23'
   local flags = standard .. ' -O0 -g -pipe -Wall -Wextra'
   local cmd
   if vim.fn.executable 'ccache' == 1 then

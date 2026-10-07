@@ -36,7 +36,7 @@ local function standalone_command(bufnr)
   return file,
     {
       workingDirectory = vim.fs.dirname(file),
-      compilationCommand = { is_c and 'clang' or 'clang++', '-x', is_c and 'c' or 'c++', is_c and '-std=c17' or '-std=c++20', '-Wall', '-Wextra', file },
+      compilationCommand = { is_c and 'clang' or 'clang++', '-x', is_c and 'c' or 'c++', is_c and '-std=c17' or '-std=c++23', '-Wall', '-Wextra', file },
     }
 end
 
